@@ -5,7 +5,7 @@ PROJ_NAME=shafa
 C_MAIN=./src/$(PROJ_NAME).c
 
 # EXT .c file
-C_EXT=$(wildcard ./src/**/*.c)
+C_EXT=$(shell find src/ -name '*.c')
 
 # Object files
 OBJ=$(subst .c,.o,$(subst src,obj,$(C_MAIN) $(C_EXT)))
@@ -39,7 +39,7 @@ $(PROJ_NAME): $(OBJ)
 
 
 objFolder:
-	@ mkdir -p obj/modules
+	@ mkdir -p obj/modules/utils
 
 clean:
 	@ rm -rf $(PROJ_NAME) *~

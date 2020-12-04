@@ -1,21 +1,23 @@
 # Name of the project
 PROJ_NAME=shafa
 
-# .c files
-C_SOURCE=$(wildcard ./src/*.c)
+# Main .c file
+C_MAIN=./src/$(PROJ_NAME).c
 
-# .h files
-H_SOURCE=$(wildcard ./src/*.h)
+# EXT .c file
+C_EXT=$(wildcard ./src/**/*.c)
 
 # Object files
-OBJ=$(subst .c,.o,$(subst src,obj,$(C_SOURCE)))
+OBJ=$(subst .c,.o,$(subst src,obj,$(C_MAIN) $(C_EXT)))
 
 # Compiler and linker
 CC=gcc
 
 # Flags for compiler
 CC_FLAGS=-std=c17 \
-         -c
+         -c       \
+		 -MP      \
+		 -MD
 
 #
 # Compilation and linking
@@ -29,22 +31,19 @@ $(PROJ_NAME): $(OBJ)
 	@ echo 'Finished building binary: $@'
 	@ echo ' '
 
-./obj/%.o: ./src/%.c #./src/%.h
+
+./obj/%.o: ./src/%.c
 	@ echo 'Building target using GCC compiler: $<'
 	$(CC) $< $(CC_FLAGS) -o $@
 	@ echo ' '
 
-
-./obj/shafa.o: ./src/shafa.c $(H_SOURCE)
-	@ echo 'Building target using GCC compiler: $<'
-	$(CC) $< $(CC_FLAGS) -o $@
-	@ echo ' '
 
 objFolder:
-	@ mkdir -p obj
+	@ mkdir -p obj/modules
 
 clean:
-	@ rm -rf ./obj/*.o $(PROJ_NAME) *~
-	@ rmdir obj
+	@ rm -rf $(PROJ_NAME) *~
+	@ rm -rf obj
+	@ echo 'Cleaned everything successfully'
 
 .PHONY: all clean

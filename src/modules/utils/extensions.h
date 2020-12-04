@@ -3,6 +3,10 @@
 
 #include <stdbool.h>
 
+#define RLE_EXT ".rle"
+#define CODES_EXT ".cod"
+#define SHAFA_EXT ".shaf"
+
 
 /**
 \brief Checks whether the file has the given extension

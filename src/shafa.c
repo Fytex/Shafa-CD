@@ -9,10 +9,6 @@
 #include "modules/d.h"
 #include "modules/utils/extensions.h"
 
-#define RLE_EXT ".rle"
-#define CODES_EXT ".cod"
-#define SHAFA_EXT ".shaf"
-
 #define _64KiB 65536;
 #define _640KiB 655360;
 #define _8MiB 8388608;

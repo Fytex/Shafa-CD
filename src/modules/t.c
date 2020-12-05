@@ -1,7 +1,7 @@
 #include "t.h"
 
 
-bool get_shafa_codes(char * const path)
+bool get_shafa_codes(const char * const path)
 {
     return true;
 }

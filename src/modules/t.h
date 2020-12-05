@@ -8,6 +8,6 @@
  @param path Original/RLE file's path
  @returns Success
 */
-bool get_shafa_codes(char * path);
+bool get_shafa_codes(const char * path);
 
 #endif //MODULE_T_H

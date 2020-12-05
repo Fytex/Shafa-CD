@@ -9,13 +9,11 @@ bool check_extension(const char * const path, const char * const ext)
 }
 
 
-bool append_extension(char * const path, const char * const ext)
+void append_extension(char * const path, const char * const ext)
 {
-    return true;
 }
 
 
-bool remove_extension(char * const path, const char * const ext)
+void remove_extension(char * const path, const char * const ext)
 {
-    return true;
 }

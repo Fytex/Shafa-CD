@@ -9,18 +9,12 @@
 #include "modules/d.h"
 #include "modules/utils/extensions.h"
 
-#define _64KiB 65536;
-#define _640KiB 655360;
-#define _8MiB 8388608;
-#define _64MiB 67108864;
-
-
-#define max(a,b)             \
-({                           \
-    __typeof__ (a) _a = (a); \
-    __typeof__ (b) _b = (b); \
-    _a > _b ? _a : _b;       \
-})
+enum {
+    _64KiB  = 65536,
+    _640KiB = 655360,
+    _8MiB   = 8388608,
+    _64MiB  = 67108864
+};
 
 
 typedef struct Options {
@@ -49,7 +43,7 @@ bool parse(const int argc, char * const argv[], Options * const options)
             if (options->file) // There is a path to file already as an argument
                 return 0;
 
-            file = malloc(strlen(key) + strlen(RLE_EXT) + max(strlen(CODES_EXT), strlen(SHAFA_EXT)) + 1);
+            file = malloc(strlen(key) + strlen(RLE_EXT) + strlen(SHAFA_EXT) + 1);
             if (!file)
                 return 1; // Fake success. Main will trigger No Input File Found as an error
 
@@ -106,7 +100,7 @@ bool parse(const int argc, char * const argv[], Options * const options)
                         return 0;
                     options->f_force_rle = true;
                     break;
-                case 'd': //  s|r
+                case 'd': // s|r
                     if (opt == 's')
                         options->d_shaf = true;
                     else if (opt == 'r')
@@ -123,7 +117,7 @@ bool parse(const int argc, char * const argv[], Options * const options)
 }
 
 
-int main (const int argc, char * argv[])
+int main (const int argc, char * const argv[])
 {
     Options options = {0};
     char * file;
@@ -153,8 +147,9 @@ int main (const int argc, char * argv[])
     if (!options.module_f && !options.module_t && !options.module_c && !options.module_d)
         options.module_f = options.module_t = options.module_c = options.module_d = 1;
 
-    if (!options.d_shaf && !options.d_rle)
-        options.d_shaf = options.d_rle = 1;
+    // Can't do the same for `options.d_shaf` and `options.d_rle` since we would lost information
+    // about the user forcing Shannon Fano's decompression in case they passed a `.rle` file
+    // which should raise a custom error
     
     if (!options.block_size)
         options.block_size = _64KiB;
@@ -216,23 +211,28 @@ int main (const int argc, char * argv[])
 
     if (options.module_d) {
 
-        if (options.d_shaf) {
-            if (!check_extension(file, SHAFA_EXT)) {
-                fprintf(stderr, "Module 'd': Didn't go through all past modules or wrong extension... Should end in %s\n", SHAFA_EXT);
-                free(options.file);
-                return 1;
+        if (options.d_shaf || !options.d_rle) { // Trigger: NULL | -d | -d -s
+
+            if (!check_extension(file, SHAFA_EXT)) { 
+                if (options.d_shaf) { // User forced execution of Shannon Fano's decompression
+                    fprintf(stderr, "Module 'd': Didn't go through all past modules or wrong extension... Should end in %s\n", SHAFA_EXT);
+                    free(options.file);
+                    return 1;
+                }
             }
+            else {
 
-            success = shafa_decompress(file);
+                success = shafa_decompress(file);
 
-            if (!success) {
-                fprintf(stderr, "Module 'd': Something went wrong while decompressing with Shannon Fano...\n");
-                free(options.file);
-                return 1;
+                if (!success) {
+                    fprintf(stderr, "Module 'd': Something went wrong while decompressing with Shannon Fano...\n");
+                    free(options.file);
+                    return 1;
+                }
             }
         }
         
-        if (options.d_rle) {
+        if (options.d_rle || !options.d_shaf) { // Trigger: NULL | -d | -d -r
             if (!check_extension(file, RLE_EXT)) {
                 fprintf(stderr, "Module 'd': Didn't go through all past modules or wrong extension... Should end in %s\n", RLE_EXT);
                 free(options.file);

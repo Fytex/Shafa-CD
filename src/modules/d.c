@@ -1,8 +1,10 @@
-/*
-
-Cabeçalho a preencher
-
-*/
+/***************************************************
+ *
+ *  Author(s): Alexandre Martins, Beatriz Rodrigues
+ *  Created Date: 3 Dec 2020
+ *  Updated Date: 6 Dec 2020
+ *
+ **************************************************/
 #include "d.h"
 
 #include <stdio.h>
@@ -11,9 +13,8 @@ Cabeçalho a preencher
 #include <stdbool.h>
 
 
-
 /*
-Algum possível comentário
+Explicar a função e variáveis
 */
 
 bool rle_decompress(char* const path) 
@@ -57,7 +58,7 @@ bool rle_decompress(char* const path)
         if (!simb) { // Detects format "00 symbol number_of_repetitions"
             simb = buffer[++i]; // Finds the symbol that repeats 
             int n_reps = buffer[++i]; // Saves the number of repetitions
-            memset(sequence + l, simb, n_reps); // Places the symbol in the string along the string according the number of repetitions
+            memset(sequence + l, simb, n_reps); // Places the symbol along the string according to the number of repetitions
             l += n_reps; // Advances the index to one that hasn't been filled
         }
         else { // Case where there aren't repetitions
@@ -65,7 +66,7 @@ bool rle_decompress(char* const path)
             ++l;
         }
     }
-    sequence[l] = '\0'; 
+    sequence[++l] = '\0'; 
     fwrite(sequence, 1, --l, f_origin); // Writes the string in the file
     free(sequence);
     return true;

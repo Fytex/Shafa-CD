@@ -1,3 +1,12 @@
+/************************************************
+ *
+ *  Author(s): Pedro Tavares
+ *  Created Date: 3 Dec 2020
+ *  Updated Date: 5 Dec 2020
+ *
+ ***********************************************/
+
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -211,7 +220,7 @@ int main (const int argc, char * const argv[])
 
     if (options.module_d) {
 
-        if (options.d_shaf || !options.d_rle) { // Trigger: NULL | -d | -d -s
+        if (options.d_shaf || !options.d_rle) { // Trigger: NULL | -m d | -m d -d s
 
             if (!check_extension(file, SHAFA_EXT)) { 
                 if (options.d_shaf) { // User forced execution of Shannon Fano's decompression
@@ -232,7 +241,7 @@ int main (const int argc, char * const argv[])
             }
         }
         
-        if (options.d_rle || !options.d_shaf) { // Trigger: NULL | -d | -d -r
+        if (options.d_rle || !options.d_shaf) { // Trigger: NULL | -m d | -m d -d r
             if (!check_extension(file, RLE_EXT)) {
                 fprintf(stderr, "Module 'd': Didn't go through all past modules or wrong extension... Should end in %s\n", RLE_EXT);
                 free(options.file);

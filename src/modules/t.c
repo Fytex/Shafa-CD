@@ -92,6 +92,36 @@ void timSort(Symbol* symbols)
     } 
 } 
 
+int bestDivision (Symbol symbs[], int first, int last)
+{
+    int div = i, g1 = 0, freqSum = 0; 
+    int minDif, dif, total;
+    for (int i = first; i <= last; ++i){
+        freqSum += symbols[i].freq;
+    }
+    total = minDif = dif = freqSum;
+    while (dif == minDif) {
+        g1 = g1 + symbols[div].freq;
+        dif = abs(2 * g1 - total);
+        if (dif < minDif) {
+            ++div;
+            minDif = dif;
+        }
+        else dif = ++minDif;
+    }
+    return div;
+}
+
+
+void updateSymbol(uint32_t freq[])
+{
+    for (int i = 0; i < nsimb; ++i){               // loop to read all 256 symbols
+        symbols[i].freq = frequencies[i];          // saves the frequency of the symbol number i in the struct
+        // symbols[i].code = malloc(8*sizeof(uint32_t)); // allocates dynamic memory to the shannon-fano codes
+        symbols[i].value = i;                      // saves his original position 
+    }
+}
+
 void readBlock (FILE* f) {
     int blockSize;  
     fscanf(f, "%d", &blockSize);             // reads the current Block size
@@ -102,9 +132,9 @@ void readBlock (FILE* f) {
         frequencies[i] = frequency;     // updates the array with the frequency
         fgetc(f);                      // gets ;
     }
-    for (int j = 0; j < 256; j++)
+    /* for (int j = 0; j < 256; j++)
         printf ("Elemento %d do array: %d\n", j, frequencies[j]);
-    
+    */
 }
 
 int readHeader(FILE *f)
@@ -112,9 +142,9 @@ int readHeader(FILE *f)
     int numOfBlocks;
     char codType;
     fscanf(f, "@ %c @ %d @", &codType, &numOfBlocks);  // reads the code type, the number of blocks and points to the block size
-    printf("Tipo de Codificação: %c\n", codType);
+/*  printf("Tipo de Codificação: %c\n", codType);
     printf("Número de Blocos: %d\n", numOfBlocks);
-
+*/
     return numOfBlocks;                               // returns the number of blocks of the file
 
 }

@@ -17,7 +17,8 @@ CC=gcc
 CC_FLAGS=-std=c17 \
          -c       \
 		 -MP      \
-		 -MD
+		 -MD      \
+		 -Wall
 
 #
 # Compilation and linking

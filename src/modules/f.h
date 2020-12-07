@@ -5,12 +5,12 @@
 
 /**
 \brief Compresses file with RLE's algorithm and saves it to disk
- @param path Original file's path
+ @param path Pointer to the original file's path
  @param force_rle Force execution of RLE's algorithm even if % of compression <= 5%
  @param block_size Size of each block
  @returns Success
 */
-bool rle_compress(char * path, bool force_rle, int block_size);
+bool rle_compress(char ** path, bool force_rle, int block_size);
 
 
 /**

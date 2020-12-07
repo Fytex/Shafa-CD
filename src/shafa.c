@@ -2,7 +2,7 @@
  *
  *  Author(s): Pedro Tavares
  *  Created Date: 3 Dec 2020
- *  Updated Date: 5 Dec 2020
+ *  Updated Date: 7 Dec 2020
  *
  ***********************************************/
 
@@ -17,6 +17,11 @@
 #include "modules/c.h"
 #include "modules/d.h"
 #include "modules/utils/extensions.h"
+
+#define max(a,b)           \
+  ({ typeof (a) _a = (a);  \
+      typeof (b) _b = (b); \
+    _a > _b ? _a : _b; })
 
 enum {
     _64KiB  = 65536,
@@ -39,10 +44,9 @@ typedef struct Options {
 } Options;
 
 
-bool parse(const int argc, char * const argv[], Options * const options)
+static bool parse(const int argc, char * const argv[], Options * const options)
 {
     char opt;
-    char * file;
     char * key, * value;
 
     for (int i = 1; i < argc; ++i) { // argv[0] == "./shafa"
@@ -50,23 +54,19 @@ bool parse(const int argc, char * const argv[], Options * const options)
         
         if (key[0] != '-') {
             if (options->file) // There is a path to file already as an argument
-                return 0;
+                return false;
 
-            file = malloc(strlen(key) + strlen(RLE_EXT) + strlen(SHAFA_EXT) + 1);
-            if (!file)
-                return 1; // Fake success. Main will trigger No Input File Found as an error
-
-            options->file = strcpy(file, key);
+            options->file = key;
         }
         else {
 
             if (++i >= argc)
-                return 0;
+                return false;
 
             value = argv[i];
 
             if (strlen(key) != 2 || strlen(value) != 1)
-                return 0;
+                return false;
         
             opt = *value;
 
@@ -106,7 +106,7 @@ bool parse(const int argc, char * const argv[], Options * const options)
                     break;
                 case 'c': // r -> rle force
                     if (opt != 'r')
-                        return 0;
+                        return false;
                     options->f_force_rle = true;
                     break;
                 case 'd': // s|r
@@ -115,14 +115,14 @@ bool parse(const int argc, char * const argv[], Options * const options)
                     else if (opt == 'r')
                         options->d_rle = true;
                     else
-                        return 0;
+                        return false;
                     break;
                 default:
-                    return 0;
+                    return false;
             }
         }
     }
-    return 1;
+    return true;
 }
 
 
@@ -138,20 +138,27 @@ int main (const int argc, char * const argv[])
     }
 
     success = parse(argc, argv, &options);
-    file = options.file;
 
     if (!success) {
         fprintf(stderr, "Wrong Options' syntax\n");
-
-        if (!file)
-            free(options.file);
-
         return 1;
     }
-    else if (!file) { // !file must be after !success since parser can leave before reading file's path if insuccess
-        fprintf(stderr, "No file input (Rare Case: No memory left)\n");
+
+    file = options.file;
+
+    if (!file) {
+        fprintf(stderr, "No file input\n");
         return 1;
     }
+
+    options.file = add_ext(file, "", true);
+
+    if (!options.file) {
+        fprintf(stderr, "Not enough memory\n");
+        return 1;
+    }
+
+
 
     if (!options.module_f && !options.module_t && !options.module_c && !options.module_d)
         options.module_f = options.module_t = options.module_c = options.module_d = 1;
@@ -174,7 +181,7 @@ int main (const int argc, char * const argv[])
     */
     
     if (options.module_f) {
-        success = rle_compress(file, options.f_force_rle, options.block_size); // Returns true if file was RLE compressed
+        success = rle_compress(&file, options.f_force_rle, options.block_size); // Returns true if file was RLE compressed
 
         if (!success) {
             fprintf(stderr, "Module 'd': Something went wrong while compressing with RLE...\n");
@@ -209,7 +216,7 @@ int main (const int argc, char * const argv[])
             return 1;
         }
 
-        success = shafa_compress(file); // If file doesn't end in .rle then its considered an uncompressed one
+        success = shafa_compress(&file); // If file doesn't end in .rle then its considered an uncompressed one
 
         if (!success) {
             fprintf(stderr, "Module 'c': Something went wrong...\n");
@@ -222,7 +229,7 @@ int main (const int argc, char * const argv[])
 
         if (options.d_shaf || !options.d_rle) { // Trigger: NULL | -m d | -m d -d s
 
-            if (!check_extension(file, SHAFA_EXT)) { 
+            if (!check_ext(file, SHAFA_EXT)) { 
                 if (options.d_shaf) { // User forced execution of Shannon Fano's decompression
                     fprintf(stderr, "Module 'd': Didn't go through all past modules or wrong extension... Should end in %s\n", SHAFA_EXT);
                     free(options.file);
@@ -231,7 +238,7 @@ int main (const int argc, char * const argv[])
             }
             else {
 
-                success = shafa_decompress(file);
+                success = shafa_decompress(&file);
 
                 if (!success) {
                     fprintf(stderr, "Module 'd': Something went wrong while decompressing with Shannon Fano...\n");
@@ -242,13 +249,13 @@ int main (const int argc, char * const argv[])
         }
         
         if (options.d_rle || !options.d_shaf) { // Trigger: NULL | -m d | -m d -d r
-            if (!check_extension(file, RLE_EXT)) {
+            if (!check_ext(file, RLE_EXT)) {
                 fprintf(stderr, "Module 'd': Didn't go through all past modules or wrong extension... Should end in %s\n", RLE_EXT);
                 free(options.file);
                 return 1;
             }
 
-            success = rle_decompress(file);
+            success = rle_decompress(&file);
 
             if (!success) {
                 fprintf(stderr, "Something went wrong in module 'd' while decompressing with RLE...\n");

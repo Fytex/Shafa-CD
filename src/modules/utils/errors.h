@@ -2,7 +2,7 @@
 #define UTILS_ERRORS_H
 
 
-enum _error
+typedef enum _error
 {
     _SUCCESS = 0,
     _LACK_OF_MEMORY      = -1,
@@ -10,7 +10,7 @@ enum _error
     _FILE_UNRECOGNIZABLE = -3,
     _FILE_TOO_SMALL      = -4,
     _FILE_CORRUPTED      = -5
-};
+} _error;
 
 
 /**

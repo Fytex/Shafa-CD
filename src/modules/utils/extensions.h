@@ -20,20 +20,19 @@ bool check_ext(const char * path, const char * ext);
 
 
 /**
-\brief Adds an extension to the file's path
- @param path File's path. If allocation fails then this argument won't be freed
+\brief Allocates a new `string` copying file's path's content and appends an extension
+ @param path File's path
  @param ext Extension
- @param clone Allocating new space for `path + ext`
  @returns File's path or NULL if an error ocurred while allocating memory
 */
-char * add_ext(char * path, const char * ext, bool clone);
+char * add_ext(const char * path, const char * ext);
 
 
 /**
-\brief Removes the extension from file's path. This function doesn't free memory space it will only substitute first extension's character to a '\0'
+\brief Allocates a new `string` copying file's path's content and removes the extension
  @param path File's path
- @returns File's path
+ @returns File's path or NULL if no extension or if allocation fails
 */
-char * rm_ext(char * path);
+char * rm_ext(const char * path);
 
 #endif //UTILS_EXTENSIONS_H

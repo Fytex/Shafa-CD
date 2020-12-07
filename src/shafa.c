@@ -151,7 +151,7 @@ int main (const int argc, char * const argv[])
         return 1;
     }
 
-    options.file = add_ext(file, "", true);
+    options.file = add_ext(file, ""); //Does the same as `strdup` from <string.h> which is not supported in c17
 
     if (!options.file) {
         fprintf(stderr, "Not enough memory\n");

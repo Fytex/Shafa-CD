@@ -51,15 +51,13 @@ char * rm_ext(const char * const path)
     char * path_ext = strrchr(path, '.');
     char * new_path = NULL;
 
-    if (path_ext) {
-        len_path_no_ext = path_ext - path;
+    len_path_no_ext = path_ext ? path_ext - path: strlen(path); 
 
-        new_path = malloc(len_path_no_ext + 1);
+    new_path = malloc(len_path_no_ext + 1);
 
-        if (new_path) {
-            memcpy(new_path, path, len_path_no_ext);
-            new_path[len_path_no_ext] = '\0';
-        }
+    if (new_path) {
+        memcpy(new_path, path, len_path_no_ext);
+        new_path[len_path_no_ext] = '\0';
     }
 
     return new_path;

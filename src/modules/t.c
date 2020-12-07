@@ -11,6 +11,10 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdint.h>
+#define min(a,b) (a > b ? b : a) 
+#define nsimb 256
+#define RUN 32
+
 
 uint32_t frequencies[256];
 

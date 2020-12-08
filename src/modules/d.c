@@ -20,7 +20,7 @@
 Write details about functions in here
 */
 
-int rle_decompress(char** const path) 
+_modules_error rle_decompress(char** const path) 
 {
     /* 
     This part allows reading and loading file into the buffer
@@ -85,8 +85,7 @@ int rle_decompress(char** const path)
     return _SUCCESS;
 }
 
-
-int shafa_decompress(char ** const path)
+_modules_error shafa_decompress(char ** const path)
 {
     return _SUCCESS;
 }

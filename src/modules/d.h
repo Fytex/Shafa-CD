@@ -8,7 +8,11 @@
  @param path Pointer to the original/RLE file's path
  @returns Error status
 */
+<<<<<<< HEAD
 _modules_error rle_decompress(char ** path);
+=======
+int rle_decompress(char ** path);
+>>>>>>> b2016d84799ee94baaaee0461f60c315beb7ee03
 
 
 /**
@@ -16,6 +20,10 @@ _modules_error rle_decompress(char ** path);
  @param path Pointer to the original/RLE file's path
  @returns Error status
 */
+<<<<<<< HEAD
 _modules_error shafa_decompress(char ** path);
+=======
+int shafa_decompress(char ** path);
+>>>>>>> b2016d84799ee94baaaee0461f60c315beb7ee03
 
 #endif //MODULE_D_H

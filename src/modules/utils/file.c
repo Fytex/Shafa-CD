@@ -36,6 +36,9 @@ This code is open source and free to use as long as the original author is ident
 (c) 2020, Bruno A.F. Dias - University of Minho, Informatics Department
 */
 
+#include <stdio.h>
+#include <stdlib.h>
+
 #define FSIZE_DEFAULT_BLOCK_SIZE 524288         // Default block size = 512 KBytes
 #define FSIZE_MIN_BLOCK_SIZE 512                // Min block size = 512 Bytes
 #define FSIZE_MAX_BLOCK_SIZE 67108864           // Max block size = 64 MBytes

@@ -2,56 +2,65 @@
  *
  *  Author(s): Alexandre Martins, Beatriz Rodrigues
  *  Created Date: 3 Dec 2020
- *  Updated Date: 6 Dec 2020
+ *  Updated Date: 8 Dec 2020
  *
  **************************************************/
-#include "d.h"
 
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <stdbool.h>
 
+#include "d.h"
+#include "file.h"
+#include "errors.h"
+#include "extensions.h"
 
 /*
-Explicar a função e variáveis
+Write details about functions in here
 */
 
-bool rle_decompress(char* const path) 
+int rle_decompress(char** const path) 
 {
-    // Reading and loading file into the buffer
-    FILE* f_rle = fopen(path, "rb");
-    if (!f_rle) { // Memory allocation problem
-        printf("Issue opening rle file\n");
-        return false;
-    }
-    fseek(f_rle, 0, SEEK_END); // Goes to the end of the file
+    /* 
+    This part allows reading and loading file into the buffer
+    */
+    // Opens file in reading (binary) mode
+    char* file_name = *path; 
+    FILE* f_rle = fopen(file_name, "rb");
+    if (!f_rle) return _FILE_INACCESSIBLE;
+
+    // Finds the size of the RLE file
+    int seek = fseek(f_rle, 0, SEEK_END); // Goes to the end of the file
+    if (!seek) return _FILE_INACCESSIBLE;
     int size_f = ftell(f_rle); // Saves the size of the file 
     rewind(f_rle); // Goes back to the beggining of the file
+
+    // Loads the contents of the RLE file to the buffer
     char* buffer = malloc(sizeof(char)*size_f); // Allocates memory for all the characters in the file
-    if (buffer == NULL) { // Memory problem
-        printf("Issue loading rle file to buffer\n");
-        return false;
-    }
+    if (!buffer) return _LACK_OF_MEMORY; 
     int res = fread(buffer, 1, size_f, f_rle); // Loads the contents of the file into the buffer
-    if (res != size_f) { // Conflict between the size read and the size that should've been read
-        printf("Conflicting size after reading rle file\n");
-        return false;
-    }
-   
-    // Writing in new file
-    FILE* f_origin = fopen("newfile.txt", "wb"); // Nota: mudar de acordo com terminações do ficheiro
-    if (!f_origin) { // Memory allocation problem
-        printf("Issue opening writing file\n");
-        return false;
-    } 
-        
-    int size_origin = 5000 ; // Nota: corrigir isto para uma função que leia do .FREQ o tamanho original descomprimido (reutilizada do modulo C)
+    if (res != size_f) return _FILE_CORRUPTED; 
+
+    fclose(f_rle); // RLE file isn't necessary anymore
+
+
+    /* 
+    This part allows writing in the new file that will match the original file
+    */
+    // Removes the .RLE extension and opens the file in writing (binary) mode
+    char* new_file = *path; 
+    char* new = rm_ext(new_file);
+    FILE* f_origin = fopen(new, "wb");
+    free(new);
+    if (!f_origin) return _FILE_INACCESSIBLE;  
+    
+    // Creats a string with enough memory to store the decompressed contents of the file
+    int size_origin = 5000 ; // **** Nota: corrigir isto para uma função que leia do .FREQ o tamanho original descomprimido (reutilizada do modulo C)
     char* sequence = malloc(sizeof(char)*size_origin + 1); // Allocates memory to the decompressed content of the file
-    if (!sequence) {// Memory allocation problem
-        printf("Issue generating memory to string\n");
-        return false;
-    }
+    if (!sequence) return _LACK_OF_MEMORY;
+    
+    // Loads the decompressed contents of the file to said string
     int l = 0; // Index of string 
     for (int i = 0; i < size_f; ++i) { // Reads RLE file and decompresses it
         char simb = buffer[i];
@@ -67,13 +76,17 @@ bool rle_decompress(char* const path)
         }
     }
     sequence[++l] = '\0'; 
+
+    // Writes the string on the files
     fwrite(sequence, 1, --l, f_origin); // Writes the string in the file
+
     free(sequence);
-    return true;
+    fclose(f_origin);
+    return _SUCCESS;
 }
 
 
-bool shafa_decompress(char * const path)
+int shafa_decompress(char ** const path)
 {
-    return true;
+    return _SUCCESS;
 }

@@ -8,7 +8,7 @@
  @param path Pointer to the original/RLE file's path
  @returns Success
 */
-bool rle_decompress(char ** path);
+int rle_decompress(char ** path);
 
 
 /**
@@ -16,6 +16,6 @@ bool rle_decompress(char ** path);
  @param path Pointer to the original/RLE file's path
  @returns Success
 */
-bool shafa_decompress(char ** path);
+int shafa_decompress(char ** path);
 
 #endif //MODULE_D_H

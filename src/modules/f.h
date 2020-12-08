@@ -1,6 +1,8 @@
 #ifndef MODULE_F_H
 #define MODULE_F_H
 
+#include <stdbool.h>
+
 #include "utils/errors.h"
 
 /**

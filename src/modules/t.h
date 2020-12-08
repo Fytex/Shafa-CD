@@ -1,13 +1,13 @@
 #ifndef MODULE_T_H
 #define MODULE_T_H
 
-#include <stdbool.h>
+#include "utils/errors.h"
 
 /**
 \brief Creates a table of Shanon Fano's codes and saves it to disk
  @param path Original/RLE file's path
- @returns Success
+ @returns Error status
 */
-bool get_shafa_codes(const char * path);
+_modules_error get_shafa_codes(const char * path);
 
 #endif //MODULE_T_H

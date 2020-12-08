@@ -2,7 +2,7 @@
  *
  *  Author(s): Pedro Tavares
  *  Created Date: 3 Dec 2020
- *  Updated Date: 7 Dec 2020
+ *  Updated Date: 8 Dec 2020
  *
  ***********************************************/
 
@@ -16,6 +16,7 @@
 #include "modules/t.h"
 #include "modules/c.h"
 #include "modules/d.h"
+#include "modules/utils/errors.h"
 #include "modules/utils/extensions.h"
 
 #define max(a,b)           \
@@ -33,7 +34,6 @@ enum {
 
 typedef struct Options {
     int block_size;
-    char * file;
     bool module_f;
     bool module_t;
     bool module_c;
@@ -44,7 +44,7 @@ typedef struct Options {
 } Options;
 
 
-static bool parse(const int argc, char * const argv[], Options * const options)
+static bool parse(const int argc, char * const argv[], Options * const options, char ** const file)
 {
     char opt;
     char * key, * value;
@@ -53,10 +53,10 @@ static bool parse(const int argc, char * const argv[], Options * const options)
         key = argv[i];
         
         if (key[0] != '-') {
-            if (options->file) // There is a path to file already as an argument
+            if (*file) // There is a path to file already as an argument
                 return false;
 
-            options->file = key;
+            *file = key;
         }
         else {
 
@@ -126,35 +126,128 @@ static bool parse(const int argc, char * const argv[], Options * const options)
 }
 
 
+/*
+                                            Execute modules
+
+        It is the responsability of each module to append/remove extensions to the array `file`
+                    which has enough memory to allocate all the extensions needed.
+        Every module needs to check if the file that he needs exist and are accessible otherwise
+                            they should return false in order to raise an error.
+*/
+_modules_error execute_modules(Options options, char ** const ptr_file) // better copying only a few bytes instead of dereferncing all of them
+{
+    _modules_error error;
+    
+    if (options.module_f) {
+        error = rle_compress(ptr_file, options.f_force_rle, options.block_size); // Returns true if file was RLE compressed
+
+        if (error) {
+            fputs("Module d: Something went wrong while compressing with RLE...\n", stderr);
+            return error;
+        }
+    
+        error = get_frequencies(*ptr_file, options.block_size);
+
+        if (error) {
+            fputs("Module f: Something went wrong while creating frequencies' table...\n", stderr);
+            return error;
+        }
+    }
+
+    if (options.module_t) {
+        error = get_shafa_codes(*ptr_file); // If file doesn't end in .rle then its considered an uncompressed one
+
+        if (error) {
+            fputs("Module t: Something went wrong...\n", stderr);
+            return error;
+        }
+    }
+
+    if (options.module_c) {
+
+        if (options.module_f && !options.module_t) { // Conflict
+            fputs("Module c: Can't execute module 'c' after 'f' without 't'...\n", stderr);
+            return _OUTSIDE_MODULE;
+        }
+
+        error = shafa_compress(ptr_file); // If file doesn't end in .rle then its considered an uncompressed one
+
+        if (error) {
+            fputs("Module c: Something went wrong...\n", stderr);
+            return error;
+        }
+    }
+
+    if (options.module_d) {
+
+        if ((options.module_f && (!options.module_t || !options.module_c)) || (options.module_t && !options.module_c)) { // Conflict
+            fputs("Module d: Can't execute module 'd' after 'f' without 't' or 'c', nor execute it after 't'  without 'c'...\n", stderr);
+            return _OUTSIDE_MODULE;
+        }
+
+        if (options.d_shaf || !options.d_rle) { // Trigger: NULL | -m d | -m d -d s
+
+            if (!check_ext(*ptr_file, SHAFA_EXT)) { 
+                if (options.d_shaf) { // User forced execution of Shannon Fano's decompression
+                    fprintf(stderr, "Module d: Wrong extension... Should end in %s\n", SHAFA_EXT);
+                    return _OUTSIDE_MODULE;
+                }
+            }
+            else {
+
+                error = shafa_decompress(ptr_file);
+
+                if (error) {
+                    fputs("Module d: Something went wrong while decompressing with Shannon Fano...\n", stderr);
+                    return error;
+                }
+            }
+        }
+        
+        if (options.d_rle || !options.d_shaf) { // Trigger: NULL | -m d | -m d -d r
+            if (!check_ext(*ptr_file, RLE_EXT)) {
+                fprintf(stderr, "Module d: Wrong extension... Should end in %s\n", RLE_EXT);
+                return _OUTSIDE_MODULE;
+            }
+
+            error = rle_decompress(ptr_file);
+
+            if (error) {
+                fputs("Module d: Something went wrong while decompressing with RLE...\n", stderr);
+                return error;
+            }
+        }
+    }
+    return _SUCCESS;
+}
+
+
 int main (const int argc, char * const argv[])
 {
     Options options = {0};
-    char * file;
-    bool success;
+    char * file = NULL;
+    int error;
 
     if (argc <= 1) {
-        fprintf(stderr, "No file input\n");
+        fputs("No file input\n", stderr);
         return 1;
     }
 
-    success = parse(argc, argv, &options);
-
-    if (!success) {
-        fprintf(stderr, "Wrong Options' syntax\n");
+    if (!parse(argc, argv, &options, &file)) {
+        fputs("Wrong Options' syntax\n", stderr);
         return 1;
     }
-
-    file = options.file;
 
     if (!file) {
-        fprintf(stderr, "No file input\n");
+        fputs("No file input\n", stderr);
         return 1;
     }
 
-    options.file = add_ext(file, ""); //Does the same as `strdup` from <string.h> which is not supported in c17
+    // Have to otherwise it will raise error if some modules tries to free it in order to change the pointer to the new file's path
+    file = add_ext(file, ""); // does the same as `strdup` from <string.h> which is not supported in c17
 
-    if (!options.file) {
-        fprintf(stderr, "Not enough memory\n");
+    if (!file) {
+        fputs("Not enough memory\n", stderr);
         return 1;
     }
 
@@ -170,100 +263,14 @@ int main (const int argc, char * const argv[])
     if (!options.block_size)
         options.block_size = _64KiB;
         
+    error = execute_modules(options, &file);
+    free(file);
 
-    /*
-                                            Execute modules
-
-        It is the responsability of each module to append/remove extensions to the array `file`
-                    which has enough memory to allocate all the extensions needed.
-        Every module needs to check if the file that he needs exist and are accessible otherwise
-                            they should return false in order to raise an error.
-    */
-    
-    if (options.module_f) {
-        success = rle_compress(&file, options.f_force_rle, options.block_size); // Returns true if file was RLE compressed
-
-        if (!success) {
-            fprintf(stderr, "Module 'd': Something went wrong while compressing with RLE...\n");
-            free(options.file);
-            return 1;
-        }
-    
-        success = get_frequencies(file, options.block_size);
-
-        if (!success) {
-            fprintf(stderr, "Module 'f': Something went wrong while creating frequencies' table...\n");
-            free(options.file);
-            return 1;
-        }
+    if (error) {
+        if (error != _OUTSIDE_MODULE)
+            fputs(error_msg(error), stderr);
+        return 1;
     }
 
-    if (options.module_t) {
-        success = get_shafa_codes(file); // If file doesn't end in .rle then its considered an uncompressed one
-
-        if (!success) {
-            fprintf(stderr, "Module 't': Something went wrong...\n");
-            free(options.file);
-            return 1;
-        }
-    }
-
-    if (options.module_c) {
-
-        if (options.module_f && !options.module_t) { // This is the only case where we can't check for extensions and has conflict
-            fprintf(stderr, "Module 'c': Can't execute module 'c' after 'f' without 't'...\n");
-            free(options.file);
-            return 1;
-        }
-
-        success = shafa_compress(&file); // If file doesn't end in .rle then its considered an uncompressed one
-
-        if (!success) {
-            fprintf(stderr, "Module 'c': Something went wrong...\n");
-            free(options.file);
-            return 1;
-        }
-    }
-
-    if (options.module_d) {
-
-        if (options.d_shaf || !options.d_rle) { // Trigger: NULL | -m d | -m d -d s
-
-            if (!check_ext(file, SHAFA_EXT)) { 
-                if (options.d_shaf) { // User forced execution of Shannon Fano's decompression
-                    fprintf(stderr, "Module 'd': Didn't go through all past modules or wrong extension... Should end in %s\n", SHAFA_EXT);
-                    free(options.file);
-                    return 1;
-                }
-            }
-            else {
-
-                success = shafa_decompress(&file);
-
-                if (!success) {
-                    fprintf(stderr, "Module 'd': Something went wrong while decompressing with Shannon Fano...\n");
-                    free(options.file);
-                    return 1;
-                }
-            }
-        }
-        
-        if (options.d_rle || !options.d_shaf) { // Trigger: NULL | -m d | -m d -d r
-            if (!check_ext(file, RLE_EXT)) {
-                fprintf(stderr, "Module 'd': Didn't go through all past modules or wrong extension... Should end in %s\n", RLE_EXT);
-                free(options.file);
-                return 1;
-            }
-
-            success = rle_decompress(&file);
-
-            if (!success) {
-                fprintf(stderr, "Something went wrong in module 'd' while decompressing with RLE...\n");
-                free(options.file);
-                return 1;
-            }
-        }
-    }
-    free(options.file);
     return 0;
 }

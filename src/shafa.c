@@ -129,10 +129,10 @@ static bool parse(const int argc, char * const argv[], Options * const options, 
 /*
                                             Execute modules
 
-        It is the responsability of each module to append/remove extensions to the array `file`
-                    which has enough memory to allocate all the extensions needed.
-        Every module needs to check if the file that he needs exist and are accessible otherwise
-                            they should return false in order to raise an error.
+         It is the responsability of each module to append/remove extensions to the filename and
+                       assign the new filename's reference to the argument `path`.
+        Every module needs to check if the files that they need exist and are accessible otherwise
+           they should return an int enumerated in _modules_error from modules/utils/errors.h
 */
 _modules_error execute_modules(Options options, char ** const ptr_file) // better copying only a few bytes instead of dereferncing all of them
 {

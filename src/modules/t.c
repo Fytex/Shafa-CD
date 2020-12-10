@@ -96,24 +96,38 @@ void timSort(Symbol* symbols)
     } 
 } 
 
-int bestDivision (Symbol symbs[], int first, int last)
+uint32_t sumFreq (Symbol * symbols,int first , int last)
 {
-    int div = i, g1 = 0, freqSum = 0; 
-    int minDif, dif, total;
-    for (int i = first; i <= last; ++i){
-        freqSum += symbols[i].freq;
+    uint32_t soma = 0;
+
+    for (int i = first; i <= last ; i++)
+        soma += symbols[i].frequency;
+
+    return soma;
+}
+
+
+int bestDivision (Symbol * symbols, int first, int last)
+{
+    
+    int division = first, total , mindif, dif;
+    uint32_t g1 = 0 ;
+
+    total = mindif = dif = sumFreq(symbols,first,last);
+
+    while (dif == mindif){
+        g1 = g1 + symbols[division].frequency;
+        dif = abs(2*g1 -total);
+            if (dif < mindif){
+                division = division + 1 ;
+                mindif = dif;
+            }
+            else
+                dif = mindif +1 ;
     }
-    total = minDif = dif = freqSum;
-    while (dif == minDif) {
-        g1 = g1 + symbols[div].freq;
-        dif = abs(2 * g1 - total);
-        if (dif < minDif) {
-            ++div;
-            minDif = dif;
-        }
-        else dif = ++minDif;
-    }
-    return div;
+
+    return division;
+        
 }
 
 

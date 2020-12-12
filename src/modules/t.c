@@ -148,9 +148,9 @@ int bestDivision (uint32_t frequencies[], int first, int last)
         
 }
 
-void startPositions(uint8_t pos[])
+void startPositions(uint8_t positions[])
 {
-    for (i = 0; i < 256; ++i) pos[i] = i;
+    for (i = 0; i < 256; ++i) positions[i] = i;
 }
 
 /* void updateSymbol(uint32_t freq[])

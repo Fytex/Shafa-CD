@@ -9,7 +9,7 @@
  @param block_size Size of the block that is going to be loaded
  @returns Error status
 */
-char* loadingInfo (FILE* f_rle, int block_size);
+char* load_rle (FILE* f_rle, int block_size);
 
 /**
 \brief Decompresses from the RLE format to the original one

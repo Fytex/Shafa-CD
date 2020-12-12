@@ -2,7 +2,7 @@
  *
  *  Author(s): Alexandre Martins, Beatriz Rodrigues
  *  Created Date: 3 Dec 2020
- *  Updated Date: 8 Dec 2020
+ *  Updated Date: 12 Dec 2020
  *
  **************************************************/
 
@@ -20,7 +20,7 @@
 Write details about functions in here
 */
 
-char* loadingInfo (FILE* f_rle, int block_size) 
+char* load_rle (FILE* f_rle, int block_size) 
 {
     char* buffer = malloc(sizeof(char)*block_size+1); 
     if (!buffer) return NULL;
@@ -72,7 +72,7 @@ _modules_error rle_decompress2(char** const path)
     for (int i = 0; i < n_blocos; ++i) {
         int block_size;
         if (fscanf(f_freq, "%d[^@]", &block_size) == 1) { // Reads the size of the block
-            char* buffer = loadingInfo(f_rle, block_size); // Loads block to buffer
+            char* buffer = load_rle(f_rle, block_size); // Loads block to buffer
             if (!buffer) return _LACK_OF_MEMORY;
             int size_sequence;
             char* sequence = decompress_string(buffer, block_size, &size_sequence);

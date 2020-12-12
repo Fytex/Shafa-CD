@@ -2,10 +2,9 @@
  *
  *  Author(s): Francisco Neves, Leonardo Freitas
  *  Created Date: 3 Dec 2020
- *  Updated Date: 7 Dec 2020
+ *  Updated Date: 12 Dec 2020
  *
  ***********************************************/
-
 
 #include "t.h"
 #include <stdio.h>
@@ -16,70 +15,89 @@
 #define RUN 32
 
 
-uint32_t frequencies[256];
+uint32_t frequencies[nsimb];
+uint8_t positions [nsimb];
+int numOfBlocks;
+char codType;
 
-typedef struct Symbol 
+
+/* typedef struct Symbol 
 {
     uint32_t freq;   // 2^32 bits it's enough to save 64MBytes
     uint8_t * code; // You need to use malloc and save the reference.
     uint8_t value; // is the same as the original array's position
 } Symbol;
-
-Symbol symbols[256];
+*/
+// Symbol symbols[256];
 
 // uint_8 * output[256];
-void insertSort (Symbol * symbols, int left , int right)
+void insertSort (uint32_t frequencies[], uint8_t positions[], int left , int right)
 {
     for (int i = left +1; i<= right ; i++ ){
 
-        uint32_t tmpfreq = symbols[i].freq;
-        Symbol freq = symbols[i];
+        uint32_t tmpFreq = frequencies[i];
+        uint8_t tmpPos = positions[i];
+        uint32_t freq = frequencies[i];
+        uint8_t pos = positions[i];
         int j = i - 1;
 
-        while (j >= left && symbols[j].freq < tmpfreq  ){
-            symbols[j+1] = symbols[j];
+        while (j >= left && frequencies[j] < tmpFreq  ){
+            frequencies[j+1] = frequencies[j];
+            pos[j+1] = positions[j];
             j--;
         }
-        symbols[j+1] = freq;
+        frequencies[j+1] = freq;
+        positions[j+1] = pos;
     }
 } 
 
-void merge (Symbol * symbols, int l, int m, int r) 
+void merge (uint32_t frequencies[], uint8_t positions[], int l, int m, int r) 
 { 
       
     int len1 = m - l + 1, len2 = r - m; 
-    Symbol left[len1], right[len2]; 
+    uint32_t left[len1], right[len2]; 
+    uint8_t posLeft[len1], posRight[len2];
     for (int i = 0; i < len1; i++) 
-        left[i] = symbols[l + i]; 
+        left[i] = frequencies[l + i]; 
+        posLeft[i] = positions[l + i];
     for (int i = 0; i < len2; i++) 
-        right[i] = symbols[m + 1 + i]; 
+        right[i] = frequencies[m + 1 + i]; 
+        posRight[i] = positions[m + 1 + i];
   
     int i = 0; 
     int j = 0; 
     int k = l; 
   
     while (i < len1 && j < len2){ 
-        if (left[i].freq >= right[j].freq){ 
-            symbols[k] = left[i]; 
+        if (left[i] >= right[j]){ 
+            frequencies[k] = left[i]; 
+            positions[k] = posLeft[i];
             i++; 
         } 
         else{
-            symbols[k] = right[j]; 
+            frequencies[k] = right[j]; 
+            positions[k] = right[j];
             j++; 
         } 
         k++; 
     } 
-    for (;i<len1;i++)symbols[k++] = left[i];
-    for (;j<len2;j++)symbols[k++] = right[j];
+    for (;i<len1;i++){
+        frequencies[k++] = left[i];
+        positions[k++] = posLeft[i];
+    }
+    for (;j<len2;j++){
+        frequencies[k++] = right[j];
+        positions[k++] = posRight[j];
+    }
     
 }  
 
-void timSort(Symbol* symbols) 
+void timSort(uint32_t frequencies[], uint8_t positions[]) 
 { 
     int n = nsimb;
     // Sort individual subarrays of size RUN.
     for (int i = 0; i < n; i+=RUN) 
-        insertSort(symbols, i, min((i+31),(n-1))); 
+        insertSort(frequencies, positions, i, min((i+31),(n-1))); 
   
     // Start merging from size RUN (or 32).  
     for (int size = RUN; size < n;size = 2*size) 
@@ -91,32 +109,32 @@ void timSort(Symbol* symbols)
             int right = min((left + 2*size - 1),(n-1)); 
   
             // merge sub array left with sub array right.
-            merge(symbols, left, mid, right); 
+            merge(frequencies, positions, left, mid, right); 
         } 
     } 
 } 
 
-uint32_t sumFreq (Symbol * symbols,int first , int last)
+uint32_t sumFreq (uint32_t frequencies[] ,int first , int last)
 {
     uint32_t soma = 0;
 
     for (int i = first; i <= last ; i++)
-        soma += symbols[i].frequency;
+        soma += frequencies[i];
 
     return soma;
 }
 
 
-int bestDivision (Symbol * symbols, int first, int last)
+int bestDivision (uint32_t frequencies[], int first, int last)
 {
     
     int division = first, total , mindif, dif;
     uint32_t g1 = 0 ;
 
-    total = mindif = dif = sumFreq(symbols,first,last);
+    total = mindif = dif = sumFreq(frequencies,first,last);
 
     while (dif == mindif){
-        g1 = g1 + symbols[division].frequency;
+        g1 = g1 + frequencies[division];
         dif = abs(2*g1 -total);
             if (dif < mindif){
                 division = division + 1 ;
@@ -130,8 +148,12 @@ int bestDivision (Symbol * symbols, int first, int last)
         
 }
 
+void startPositions(uint8_t pos[])
+{
+    for (i = 0; i < 256; ++i) pos[i] = i;
+}
 
-void updateSymbol(uint32_t freq[])
+/* void updateSymbol(uint32_t freq[])
 {
     for (int i = 0; i < nsimb; ++i){               // loop to read all 256 symbols
         symbols[i].freq = frequencies[i];          // saves the frequency of the symbol number i in the struct
@@ -139,8 +161,10 @@ void updateSymbol(uint32_t freq[])
         symbols[i].value = i;                      // saves his original position 
     }
 }
+*/
 
-void readBlock (FILE* f) {
+int readBlock (FILE* f) 
+{
     int blockSize;  
     fscanf(f, "%d", &blockSize);             // reads the current Block size
     fgetc(f);                               // gets @
@@ -155,16 +179,12 @@ void readBlock (FILE* f) {
     */
 }
 
-int readHeader(FILE *f)
+void readHeader(FILE *f)
 {
-    int numOfBlocks;
-    char codType;
     fscanf(f, "@ %c @ %d @", &codType, &numOfBlocks);  // reads the code type, the number of blocks and points to the block size
 /*  printf("Tipo de Codificação: %c\n", codType);
     printf("Número de Blocos: %d\n", numOfBlocks);
 */
-    return numOfBlocks;                               // returns the number of blocks of the file
-
 }
 
 bool get_shafa_codes(const char * const path)

@@ -7,16 +7,17 @@
 \brief Loads a block of a RLE file into a string
  @param f_rle RLE file that will be saved in the string
  @param block_size Size of the block that is going to be loaded
- @returns Error status
+ @param error Address to load error in case of unsuccess
+ @returns String with the loaded contents
 */
-char* load_rle (FILE* f_rle, int block_size);
+char* load_rle (FILE* f_rle, int block_size, _modules_error* error);
 
 /**
 \brief Decompresses from the RLE format to the original one
  @param buffer String that contains a block of the RLE file
  @param block_size Size of the block that is going to be decompressed
  @param size_sequence Adress in which to load the size of the decompressed string
- @returns Error status
+ @returns Decompressed string
 */
 char* decompress_string (char* buffer, int block_size, int* size_sequence);
 

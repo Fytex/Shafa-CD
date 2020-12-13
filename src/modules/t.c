@@ -144,7 +144,7 @@ int bestDivision (uint32_t frequencies[], int first, int last)
                 dif = mindif +1 ;
     }
 
-    return division;
+    return division - 1;
         
 }
 

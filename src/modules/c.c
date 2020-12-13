@@ -1,8 +1,10 @@
 #include <stdint.h>
 #include <stdio.h>
+
 #include "c.h"
+#include "utils/extensions.h"
 
-
+/*
 void read_header (FILE * fp, FILE * ori)
 {
     uint8_t max_code [256], table[256]={0};
@@ -42,8 +44,84 @@ void read_header (FILE * fp, FILE * ori)
             } 
     }
 }
+*/
 
-bool shafa_compress(char * const path)
+typedef struct CodesIndex {
+    int index;
+    int next; 
+    code[257]; // 256 max code + 1 NULL
+} CodesIndex;
+
+
+_modules_error read_data(FILE * fd_codes, CodesIndex * codes_table_header)
 {
-    return true;
+    fscanf("@%s@") // just read the string and return the string
+}
+
+
+
+_modules_error shafa_compress(char ** path)
+{
+    FILE * fd_file, fd_codes, fd_shafa;
+    char * path_file = *path;
+    char * path_codes;
+    char * path_shafa;
+    int num_blocks, block_size;
+    char mode;
+    
+    
+    // Create Codes's path string and Open Codes's handle
+
+    path_codes = add_ext(path_file, CODES_EXT);
+
+    if (!path_codes)
+        return _LACK_OF_MEMORY;
+    
+    fd_codes = fopen(path_codes, "rb");
+
+    if (!fd_codes)
+        return _FILE_INACCESSIBLE;
+
+    if (fscanf(fd_codes, "@%c@%d@%d", mode, &num_blocks, &block_size) != 3)
+        return _FILE_UNRECOGNIZABLE;
+
+
+    // Open File's handle
+    
+    fd_file = fopen(path_file, "rb");
+
+    if (!fd_file)
+        return _FILE_INACCESSIBLE;
+    
+
+    // Create Shafa's path string and Open Shafa's handle
+
+    path_shafa = add_ext(path_file, SHAFA_EXT);
+
+    if (!path_shafa)
+        return _LACK_OF_MEMORY;
+
+    
+    fd_shafa = fopen(path_shafa, "wb");
+
+    if (!fd_shafa)
+        return _FILE_INACCESSIBLE;
+
+    
+    for (int i = 0; i < num_blocks; ++i) {
+        error = read_data(fd_codes, file_input); // se for apenas uma linha mais vale esquecer a função e por diretamente
+        // A função compress_to_file vai criar a tabela através da string dada e vai escrever no ficheiro
+        error = compress_to_file(fd_file, fd_shafa, codes_table_header, file_input); // use semaphore (mutex) [only when multithreading]
+    }
+
+    fclose(fd_codes);
+    fclose(fd_file);
+    fclose(fd_shafa);
+
+    *path = path_shafa;
+
+    free(path_codes);
+    free(path_file);
+
+    return _SUCCESS;
 }

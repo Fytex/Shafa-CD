@@ -43,7 +43,7 @@ void insertSort (uint32_t frequencies[], uint8_t positions[], int left , int rig
 
         while (j >= left && frequencies[j] < tmpFreq  ){
             frequencies[j+1] = frequencies[j];
-            pos[j+1] = positions[j];
+            positions[j+1] = positions[j];
             j--;
         }
         frequencies[j+1] = freq;
@@ -57,12 +57,14 @@ void merge (uint32_t frequencies[], uint8_t positions[], int l, int m, int r)
     int len1 = m - l + 1, len2 = r - m; 
     uint32_t left[len1], right[len2]; 
     uint8_t posLeft[len1], posRight[len2];
-    for (int i = 0; i < len1; i++) 
+    for (int i = 0; i < len1; i++){ 
         left[i] = frequencies[l + i]; 
         posLeft[i] = positions[l + i];
-    for (int i = 0; i < len2; i++) 
+    }
+    for (int i = 0; i < len2; i++){
         right[i] = frequencies[m + 1 + i]; 
         posRight[i] = positions[m + 1 + i];
+    }
   
     int i = 0; 
     int j = 0; 
@@ -148,9 +150,11 @@ int bestDivision (uint32_t frequencies[], int first, int last)
         
 }
 
+
+
 void startPositions(uint8_t positions[])
 {
-    for (i = 0; i < 256; ++i) positions[i] = i;
+    for (int i = 0; i < 256; ++i) positions[i] = i;
 }
 
 /* void updateSymbol(uint32_t freq[])

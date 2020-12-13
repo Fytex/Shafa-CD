@@ -139,17 +139,10 @@ _modules_error execute_modules(Options options, char ** const ptr_file) // bette
     _modules_error error;
     
     if (options.module_f) {
-        error = rle_compress(ptr_file, options.f_force_rle, options.block_size); // Returns true if file was RLE compressed
+        error = freq_rle_compress(ptr_file, options.f_force_rle, options.block_size); // Returns true if file was RLE compressed
 
         if (error) {
-            fputs("Module d: Something went wrong while compressing with RLE...\n", stderr);
-            return error;
-        }
-    
-        error = get_frequencies(*ptr_file, options.block_size);
-
-        if (error) {
-            fputs("Module f: Something went wrong while creating frequencies' table...\n", stderr);
+            fputs("Module d: Something went wrong while compressing with RLE or creating frequencies' table...\n", stderr);
             return error;
         }
     }

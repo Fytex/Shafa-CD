@@ -41,6 +41,8 @@ char* load_rle (FILE* f_rle, int size_of_block, _modules_error* error)
 char* decompress_string (char* buffer, int block_size, int* size_sequence) 
 {
     char* sequence = malloc(5000); // CORRIGIR: arranjar algo mais eficiente
+    if (!sequence) return NULL;
+    
     int l = 0;
     for (int j = 0; j < block_size; ++j) {
         char simb = buffer[j];
@@ -83,6 +85,7 @@ _modules_error rle_decompress(char** const path)
             if (!buffer) return error; // When buffer is NULL there was an error in load_rle that should be reported
             int size_sequence;
             char* sequence = decompress_string(buffer, block_size, &size_sequence);
+            if (!sequence) return _LACK_OF_MEMORY;
             free(buffer);
             int res = fwrite(sequence, 1, size_sequence, f_txt); // Writes decompressed string in txt file
             if (res != size_sequence) return _FILE_CORRUPTED; 

@@ -46,26 +46,37 @@ void read_header (FILE * fp, FILE * ori)
 }
 */
 
-typedef struct CodesIndex {
+typedef struct codesindex {
     int index;
     int next; 
     code[257]; // 256 max code + 1 NULL
 } CodesIndex;
 
-
-_modules_error read_data(FILE * fd_codes, CodesIndex * codes_table_header)
+_modules_error compress_to_file (FILE * fd_codes, FILE * fd_file, int block_size, char * block_input,  FILE * fd_shafa)
 {
-    fscanf("@%s@") // just read the string and return the string
-}
+    int n_chars;
+    const char * ptr = block_input;
+    CodesIndex * table = malloc(8*256*(sizeof(struct codesindex)));
 
+    for (int i = 0; i< 256 ; ++i)
+        *table[i].code = NULL;
+
+    for (int i = 0; i<256; ++i){
+        if (sscanf (ptr,"%256[^;]%n",table[i].code,&n_chars) == 1)
+            ptr += n_chars;
+        else if (*ptr == ';')
+            ++ptr;
+    }
+}
 
 
 _modules_error shafa_compress(char ** path)
 {
-    FILE * fd_file, fd_codes, fd_shafa;
+    FILE * fd_file, * fd_codes, * fd_shafa;
     char * path_file = *path;
     char * path_codes;
     char * path_shafa;
+    char * block_input;
     int num_blocks, block_size;
     char mode;
     
@@ -82,7 +93,7 @@ _modules_error shafa_compress(char ** path)
     if (!fd_codes)
         return _FILE_INACCESSIBLE;
 
-    if (fscanf(fd_codes, "@%c@%d@%d", mode, &num_blocks, &block_size) != 3)
+    if (fscanf(fd_codes, "@%c@%d", mode, &num_blocks) != 2)
         return _FILE_UNRECOGNIZABLE;
 
 
@@ -107,11 +118,15 @@ _modules_error shafa_compress(char ** path)
     if (!fd_shafa)
         return _FILE_INACCESSIBLE;
 
+    block_input = malloc(33151); //sum 1 to 256 (worst case shannon fano) + 255 semicolons 
+
     
     for (int i = 0; i < num_blocks; ++i) {
-        error = read_data(fd_codes, file_input); // se for apenas uma linha mais vale esquecer a função e por diretamente
+
+        fscanf(fd_codes,"@%d@%[^@]s",&block_size,block_input);
+
         // A função compress_to_file vai criar a tabela através da string dada e vai escrever no ficheiro
-        error = compress_to_file(fd_file, fd_shafa, codes_table_header, file_input); // use semaphore (mutex) [only when multithreading]
+        compress_to_file(fd_codes, fd_file, block_size, block_input, fd_shafa); // use semaphore (mutex) [only when multithreading]
     }
 
     fclose(fd_codes);
@@ -124,4 +139,9 @@ _modules_error shafa_compress(char ** path)
     free(path_file);
 
     return _SUCCESS;
+}
+
+int main (){
+
+    shafa_compress("aaa.txt");
 }

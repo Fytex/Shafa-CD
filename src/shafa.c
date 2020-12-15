@@ -2,7 +2,7 @@
  *
  *  Author(s): Pedro Tavares
  *  Created Date: 3 Dec 2020
- *  Updated Date: 8 Dec 2020
+ *  Updated Date: 15 Dec 2020
  *
  ***********************************************/
 
@@ -16,6 +16,7 @@
 #include "modules/t.h"
 #include "modules/c.h"
 #include "modules/d.h"
+#include "modules/utils/file.h"
 #include "modules/utils/errors.h"
 #include "modules/utils/extensions.h"
 
@@ -24,15 +25,8 @@
       typeof (b) _b = (b); \
     _a > _b ? _a : _b; })
 
-enum {
-    _64KiB  = 65536,
-    _640KiB = 655360,
-    _8MiB   = 8388608,
-    _64MiB  = 67108864
-};
 
-
-typedef struct Options {
+typedef struct {
     int block_size;
     bool module_f;
     bool module_t;

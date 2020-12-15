@@ -1,6 +1,15 @@
 #ifndef UTILS_FILE_H
 #define UTILS_FILE_H
 
+enum {
+    _1KiB   = 1024,
+    _64KiB  = 65536,
+    _640KiB = 655360,
+    _8MiB   = 8388608,
+    _64MiB  = 67108864
+};
+
+
 /**
 \brief Calculate the whole file size per block. O.S. Independent
  @param fp_in File Descriptor

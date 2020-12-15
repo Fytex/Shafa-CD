@@ -2,7 +2,7 @@
  *
  *  Author(s): Alexandre Martins, Beatriz Rodrigues
  *  Created Date: 3 Dec 2020
- *  Updated Date: 12 Dec 2020
+ *  Updated Date: 13 Dec 2020
  *
  **************************************************/
 
@@ -16,16 +16,24 @@
 #include "errors.h"
 #include "extensions.h"
 
+#define n_simb 256
+
 /*
 Write details about functions in here
 */
 
-char* load_rle (FILE* f_rle, int block_size) 
+char* load_rle (FILE* f_rle, int size_of_block, _modules_error* error) 
 {
-    char* buffer = malloc(sizeof(char)*block_size+1); 
-    if (!buffer) return NULL;
-    int res = fread(buffer, 1, block_size, f_rle); // Loads a block of RLE file to string
-    if (res != block_size) return NULL;
+    char* buffer = malloc(sizeof(char)*size_of_block+1); 
+    if (!buffer) {
+        *error = _LACK_OF_MEMORY;
+        return NULL;
+    }
+    int res = fread(buffer, 1, size_of_block, f_rle);
+    if (res != size_of_block) {
+        *error = _FILE_CORRUPTED;
+        return NULL;
+    }
     buffer[res] = '\0';
     return buffer;
 }
@@ -33,6 +41,8 @@ char* load_rle (FILE* f_rle, int block_size)
 char* decompress_string (char* buffer, int block_size, int* size_sequence) 
 {
     char* sequence = malloc(5000); // CORRIGIR: arranjar algo mais eficiente
+    if (!sequence) return NULL;
+    
     int l = 0;
     for (int j = 0; j < block_size; ++j) {
         char simb = buffer[j];
@@ -52,43 +62,42 @@ char* decompress_string (char* buffer, int block_size, int* size_sequence)
     return sequence;
 }
 
-_modules_error rle_decompress2(char** const path) 
+_modules_error rle_decompress(char** const path) 
 {
     // Opening the files
     FILE* f_rle = fopen(*path, "rb");
     if (!f_rle) return _FILE_INACCESSIBLE;
-    FILE* f_freq = fopen(add_ext(*path, ".freq"), "rb");
+    FILE* f_freq = fopen(add_ext(*path, FREQ_EXT), "rb");
     if (!f_freq) return _FILE_INACCESSIBLE;
     FILE* f_txt = fopen(rm_ext(*path), "wb");
     if (!f_txt) return _FILE_INACCESSIBLE;
     
     // Reads header
     int n_blocos; 
-    char mode[2];
-    if (fscanf(f_freq, "@%c@%d@", mode, &n_blocos) != 2) return _FILE_CORRUPTED;
-    if (mode[0] != 'R') return _OUTSIDE_MODULE;
+    if (fscanf(f_freq, "@R@%d@", &n_blocos) != 1) return _FILE_UNRECOGNIZABLE;
     
     // Reads from RLE and FREQ , while writting the decompressed version of its contents in the TXT file
     for (int i = 0; i < n_blocos; ++i) {
         int block_size;
         if (fscanf(f_freq, "%d[^@]", &block_size) == 1) { // Reads the size of the block
-            char* buffer = load_rle(f_rle, block_size); // Loads block to buffer
-            if (!buffer) return _LACK_OF_MEMORY;
+            _modules_error error;
+            char* buffer = load_rle(f_rle, block_size, &error); // Loads block to buffer
+            if (!buffer) return error; // When buffer is NULL there was an error in load_rle that should be reported
             int size_sequence;
             char* sequence = decompress_string(buffer, block_size, &size_sequence);
+            if (!sequence) return _LACK_OF_MEMORY;
             free(buffer);
             int res = fwrite(sequence, 1, size_sequence, f_txt); // Writes decompressed string in txt file
             if (res != size_sequence) return _FILE_CORRUPTED; 
             free(sequence);
         }
         // Advances all the frequencies of the symbols (they are unnecessary for this process)
-        int block;
-        if (i < n_blocos - 1)
-            for (int k = 0; k <= 256; ++k) {
-                fscanf(f_freq, "%d[^;]", &block);// corrigir: ignores return value
+        if (i < n_blocos - 1) {
+            for (int k = 0; k <= n_simb; ++k) { // FIGURE OUT: Porque só funciona com <= em vez de <
+                fscanf(f_freq, "%d[^;]", &block_size);// CORRIGIR: ignores return value
                 fseek(f_freq, 1, SEEK_CUR);
             }
-        
+        }
     }
 
     // Closes all the files

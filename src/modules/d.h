@@ -36,4 +36,12 @@ _modules_error rle_decompress(char ** path);
 */
 _modules_error shafa_decompress(char ** path);
 
+/**
+\brief struct of a btree to save the symbols codes
+*/
+typedef struct btree{
+    int code;
+    char symbol;
+    struct btree *left,*right;
+} BTree;
 #endif //MODULE_D_H

@@ -73,11 +73,11 @@ _modules_error rle_decompress(char** const path)
     if (!f_txt) return _FILE_INACCESSIBLE;
     
     // Reads header
-    int n_blocos; 
-    if (fscanf(f_freq, "@R@%d@", &n_blocos) != 1) return _FILE_UNRECOGNIZABLE;
+    int n_blocks; 
+    if (fscanf(f_freq, "@R@%d@", &n_blocks) != 1) return _FILE_UNRECOGNIZABLE;
     
     // Reads from RLE and FREQ , while writting the decompressed version of its contents in the TXT file
-    for (int i = 0; i < n_blocos; ++i) {
+    for (int i = 0; i < n_blocks; ++i) {
         int block_size;
         if (fscanf(f_freq, "%d[^@]", &block_size) == 1) { // Reads the size of the block
             _modules_error error;
@@ -92,7 +92,7 @@ _modules_error rle_decompress(char** const path)
             free(sequence);
         }
         // Advances all the frequencies of the symbols (they are unnecessary for this process)
-        if (i < n_blocos - 1) {
+        if (i < n_blocks - 1) {
             for (int k = 0; k <= n_simb; ++k) { // FIGURE OUT: Porque só funciona com <= em vez de <
                 fscanf(f_freq, "%d[^;]", &block_size);// CORRIGIR: ignores return value
                 fseek(f_freq, 1, SEEK_CUR);
@@ -112,3 +112,55 @@ _modules_error shafa_decompress(char ** const path)
 {
     return _SUCCESS;
 }
+
+BTree add_tree(BTree decoder, char *code){
+    BTree root=decoder;
+    int i=0;
+    //arvore tem que começar com um nodo
+    while(decoder){
+        if (code[i]=='1'){
+            decoder=decoder->right;
+        }
+        else{
+            decoder=decoder->left;
+        }
+        ++i;
+    }
+    for(;decoder[i];++i){
+        decoder=malloc(sizeof(struct btree));
+        decoder->left = decoder->right = NULL;
+        if (code[i]=='1'){
+            decoder=decoder->right;
+        }
+        else{
+            decoder=decoder->left;
+        }
+    }
+
+    return root;
+}
+
+_modules_error create_tree(char *path, int **blocks_sizes, int *size, BTree *decoder){
+    FILE* f_cod = fopen(path,"rb");
+    if(!f_cod) return _FILE_UNRECOGNIZABLE;
+    // Reads header
+    int j; 
+    if (fscanf(f_freq, "@R@%d@", size) != 1) return _FILE_UNRECOGNIZABLE;
+    *blocks_sizes = malloc (sizeof(int)*(*size));
+    if (!(*blocks_sizes)) return _LACK_OF_MEMORY;
+    // 
+    for (int i = 0; i < size; ++i) {
+        int block_size;
+        if (fscanf(f_freq, "%d[^@]", &block_size) == 1)
+            blocks_sizes[j++]=block_size;
+        
+        for (int k = 0; k <= n_simb; ++k) { // FIGURE OUT: Porque só funciona com <= em vez de <
+            char * code;
+            if(fscanf(f_freq, "%s[^;]", code)==1){
+                *decoder = add_tree(*decoder,code);
+            }
+            fseek(f_freq, 1, SEEK_CUR);
+        }
+    }
+}
+

@@ -10,16 +10,16 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdint.h>
-#define min(a,b) (a > b ? b : a) 
-#define nsimb 256
+#include <string.h>
+
 #define RUN 32
+#define nsimb 256
+#define min(a,b) (a > b ? b : a) 
 
-
-uint32_t frequencies[nsimb];
-uint8_t positions [nsimb];
-int numOfBlocks;
 char codType;
-
+int numOfBlocks;
+uint8_t positions [nsimb];
+uint32_t frequencies[nsimb];
 
 /* typedef struct Symbol 
 {
@@ -150,7 +150,13 @@ int bestDivision (uint32_t frequencies[], int first, int last)
         
 }
 
-
+void startCodes (unsigned char *codes[256])
+{
+   for (int i = 0; i < 256; ++i){
+     codes[i] = malloc((257) * sizeof(unsigned char));
+     for (int j = 0; j < 256; ++j) codes[i][j] = '0';
+   }
+}
 
 void startPositions(uint8_t positions[])
 {

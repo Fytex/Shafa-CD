@@ -9,8 +9,8 @@ typedef enum _error
     _LACK_OF_MEMORY      = -1,
     _FILE_INACCESSIBLE   = -2,
     _FILE_UNRECOGNIZABLE = -3,
-    _FILE_TOO_SMALL      = -4,
-    _FILE_CORRUPTED      = -5,
+    _FILE_STREAM_FAILED  = -4,
+    _FILE_TOO_SMALL      = -5,
 } _modules_error;
 
 

@@ -1,144 +1,154 @@
 #include <stdint.h>
+#include <stdlib.h>
 #include <stdio.h>
 
 #include "c.h"
 #include "utils/extensions.h"
 
-/*
-void read_header (FILE * fp, FILE * ori)
-{
-    uint8_t max_code [256], table[256]={0};
-    uint8_t * code, * symbols;
-    int nblocks, i, j, blocksize;
-    char mode[2]; 
-    
-    fp = fopen (fp,"rb");
-    ori = fopen (ori,"rb");
-   
- 
-    if (fscanf(fp,"@%c@%d@%d@",mode,&nblocks,&blocksize) == 3){
-                
-        symbols = (uint8_t*) malloc (blocksize);
+#define MAX_CODE_INT 32
+#define NUM_SYMBOLS 256
+#define NUM_OFFSETS 8
 
-        fread (symbols,1,blocksize,ori);
-             
-            for (j = 0; j <=255; j++){
-            
-                if (fscanf(fp,"%[^;]",max_code)!= 0){                  
 
-                    for (i=0;i<strlen(max_code);i++)
-                        if(max_code[i]=='@')break;
-
-                fseek (fp,1,SEEK_CUR);      
-                 
-                code = (uint8_t*) malloc(strlen(max_code) / 8 );
-                uint8_t byte = strtoul(max_code, NULL, 2);
-
-                *code = byte;
-            
-                table[j] = *code;    
-                }
-                else{
-                fseek(fp,1,SEEK_CUR);
-                }                    
-            } 
-    }
-}
-*/
-
-typedef struct codesindex {
+typedef struct {
     int index;
     int next; 
-    code[257]; // 256 max code + 1 NULL
+    uint8_t * code[MAX_CODE_INT + 1];
 } CodesIndex;
 
-_modules_error compress_to_file (FILE * fd_codes, FILE * fd_file, int block_size, char * block_input,  FILE * fd_shafa)
+
+int compress_to_file(FILE * const fd_file, FILE * const fd_shafa, const char * const codes_input, const int block_size)
 {
     int n_chars;
-    const char * ptr = block_input;
-    CodesIndex * table = malloc(8*256*(sizeof(struct codesindex)));
+    const char * codes_in_ptr = codes_input;
+    CodesIndex * const table = calloc(NUM_OFFSETS * NUM_SYMBOLS, sizeof(CodesIndex));
+    char tmp;
+    int bit_idx, code_idx, byte;
 
-    for (int i = 0; i< 256 ; ++i)
-        *table[i].code = NULL;
+    for (int syb_idx = 0; syb_idx < NUM_SYMBOLS; ++syb_idx) {
+        for (code_idx = 0, byte = 0; *codes_in_ptr != ';' && code_idx < MAX_CODE_INT; ++code_idx) {
+            for (bit_idx = 0; bit_idx < 8; ++bit_idx) {
 
-    for (int i = 0; i<256; ++i){
-        if (sscanf (ptr,"%256[^;]%n",table[i].code,&n_chars) == 1)
-            ptr += n_chars;
-        else if (*ptr == ';')
-            ++ptr;
+                tmp = *codes_in_ptr++;
+                if (tmp == '1') ++byte;
+                else if (tmp == ';') {
+                    if (bit_idx)
+                        byte <<= 8 - bit_idx;
+                    break;
+                }
+                else if (tmp != '0') {
+                    free(table);
+                    return _FILE_UNRECOGNIZABLE;
+                }
+            
+                byte <<= 1;
+            }
+            table[syb_idx].code[code_idx] = byte;
+            byte = 0;
+        }
+
+        table[syb_idx].next = (bit_idx != 8) ? bit_idx * NUM_SYMBOLS : 0;
+        table[syb_idx].index = code_idx - 1;
     }
+
+    /*
+    i = 3
+    next_byte_extra = (*codes & (2^i - 1)) << (8-i)
+    *codes =>> i
+    ++codes
+    *codes = *codes | byte_extra
+    */
+
+   return 0;
 }
 
 
-_modules_error shafa_compress(char ** path)
+_modules_error shafa_compress(char ** const path)
 {
     FILE * fd_file, * fd_codes, * fd_shafa;
     char * path_file = *path;
     char * path_codes;
     char * path_shafa;
     char * block_input;
-    int num_blocks, block_size;
     char mode;
+    int num_blocks, block_size;
+    int error = _SUCCESS;
+
     
     
     // Create Codes's path string and Open Codes's handle
 
     path_codes = add_ext(path_file, CODES_EXT);
 
-    if (!path_codes)
-        return _LACK_OF_MEMORY;
+    if (path_codes) {
     
-    fd_codes = fopen(path_codes, "rb");
+        fd_codes = fopen(path_codes, "rb");
 
-    if (!fd_codes)
-        return _FILE_INACCESSIBLE;
+        if (fd_codes) {
 
-    if (fscanf(fd_codes, "@%c@%d", mode, &num_blocks) != 2)
-        return _FILE_UNRECOGNIZABLE;
+            if (fscanf(fd_codes, "@%c@%d", &mode, &num_blocks) == 2) {
 
+                // Open File's handle
+                fd_file = fopen(path_file, "rb");
 
-    // Open File's handle
-    
-    fd_file = fopen(path_file, "rb");
-
-    if (!fd_file)
-        return _FILE_INACCESSIBLE;
+                if (fd_file) {
     
 
-    // Create Shafa's path string and Open Shafa's handle
+                    // Create Shafa's path string and Open Shafa's handle
 
-    path_shafa = add_ext(path_file, SHAFA_EXT);
+                    path_shafa = add_ext(path_file, SHAFA_EXT);
 
-    if (!path_shafa)
-        return _LACK_OF_MEMORY;
-
+                    if (path_shafa) {
     
-    fd_shafa = fopen(path_shafa, "wb");
+                        fd_shafa = fopen(path_shafa, "wb");
 
-    if (!fd_shafa)
-        return _FILE_INACCESSIBLE;
+                        if (fd_shafa) {
 
-    block_input = malloc(33151); //sum 1 to 256 (worst case shannon fano) + 255 semicolons 
+                            block_input = malloc(33151); //sum 1 to 256 (worst case shannon fano) + 255 semicolons 
 
-    
-    for (int i = 0; i < num_blocks; ++i) {
 
-        fscanf(fd_codes,"@%d@%[^@]s",&block_size,block_input);
+                            for (int i = 0; i < num_blocks; ++i) {
 
-        // A função compress_to_file vai criar a tabela através da string dada e vai escrever no ficheiro
-        compress_to_file(fd_codes, fd_file, block_size, block_input, fd_shafa); // use semaphore (mutex) [only when multithreading]
+                                fscanf(fd_codes,"@%d@%[^@]s",&block_size,block_input);
+
+                                // A função compress_to_file vai criar a tabela através da string dada e vai escrever no ficheiro
+                                compress_to_file(fd_file, fd_codes, fd_shafa, block_size, block_input); // use semaphore (mutex) [only when multithreading]
+                            }
+
+
+                            fclose(fd_shafa);
+                            free(path_file);
+                            *path = path_shafa;
+                        }
+                        else {
+                            free(path_shafa);
+                            error = _FILE_INACCESSIBLE;
+                        }
+
+                    }
+                    else 
+                        error = _LACK_OF_MEMORY;
+
+                    fclose(fd_file);
+                }
+                else
+                    error = _FILE_INACCESSIBLE;
+                
+            }
+            else
+                error = _FILE_UNRECOGNIZABLE;
+
+            fclose(fd_codes);
+        }
+        else
+            error = _FILE_INACCESSIBLE;
+
+        free(path_codes);
     }
+    else
+        error = _LACK_OF_MEMORY;
 
-    fclose(fd_codes);
-    fclose(fd_file);
-    fclose(fd_shafa);
-
-    *path = path_shafa;
-
-    free(path_codes);
-    free(path_file);
-
-    return _SUCCESS;
+    return error;
 }
 
 int main (){

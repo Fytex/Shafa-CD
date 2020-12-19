@@ -31,34 +31,72 @@ char* load_rle (FILE* f_rle, int size_of_block, _modules_error* error)
     }
     int res = fread(buffer, 1, size_of_block, f_rle);
     if (res != size_of_block) {
-        *error = _FILE_CORRUPTED;
+        *error = _FILE_STREAM_FAILED;
         return NULL;
     }
     buffer[res] = '\0';
     return buffer;
 }
 
-char* decompress_string (char* buffer, int block_size, int* size_sequence) 
-{
-    char* sequence = malloc(5000); // CORRIGIR: arranjar algo mais eficiente
-    if (!sequence) return NULL;
-    
+char* decompress_string (char* buffer, int block_size, int* size_string, _modules_error* error) {
+    int orig_size;
+    // Assumption of the smallest size possible for the decompressed file
+    if (block_size <= _64KiB) orig_size = _64KiB + _1KiB;
+    else if (block_size <= _640KiB) orig_size = _640KiB + _1KiB;
+    else if (block_size <= _8MiB) orig_size = _8MiB + _1KiB;
+    else orig_size = _64MiB + _1KiB;
+
+    // Allocation of the corresponding memory
+    char* sequence = malloc(sizeof(char)*orig_size);
+    if (!sequence) {
+        *error = _LACK_OF_MEMORY;
+        return NULL;
+    }
+
+    // Process of decompression
     int l = 0;
     for (int j = 0; j < block_size; ++j) {
         char simb = buffer[j];
-        if (!simb) { // Detects format "{0} symbol {number_of_repetitions}"
+        if (!simb) { // Detects format "00 symbol number_of_repetitions"
             simb = buffer[++j]; // Finds the symbol that repeats 
             int n_reps = buffer[++j]; // Saves the number of repetitions
+
+            // VERIFICAR ISTO
+            // If the memory wasn't enough allocate more
+            if (l + n_reps >= orig_size) {
+                switch (orig_size) {
+                    case _64KiB + _1KiB:
+                        block_size = _640KiB + _1KiB;
+                        break;
+                    case _640KiB + _1KiB:
+                        block_size = _8MiB + _1KiB;
+                        break;
+                    case _8MiB + _1KiB:
+                        block_size = _64MiB + _1KiB;
+                        break;
+                    default:
+                        *error = _FILE_UNRECOGNIZABLE;
+                        return NULL;
+                }
+                sequence = realloc(sequence, block_size);
+                if (!sequence) {
+                    free(sequence);
+                    *error = _LACK_OF_MEMORY;
+                    return NULL;
+                }
+            }
             memset(sequence + l, simb, n_reps); // Places the symbol along the string according to the number of repetitions
             l += n_reps; // Advances the index to one that hasn't been filled
         }
         else { // Case where there aren't repetitions
             sequence[l] = simb; 
             ++l;
+            // Pensar se tenho que por o caso de alocar mais memoria aqui
         }
     }
-    *size_sequence = l; // Saves the size of the decompressed string
-    sequence[++l] = '\0'; 
+    *size_string = l;
+    sequence[++l] = '\0';
+
     return sequence;
 }
 
@@ -68,34 +106,43 @@ _modules_error rle_decompress(char** const path)
     FILE* f_rle = fopen(*path, "rb");
     if (!f_rle) return _FILE_INACCESSIBLE;
     FILE* f_freq = fopen(add_ext(*path, FREQ_EXT), "rb");
-    if (!f_freq) return _FILE_INACCESSIBLE;
+    if (!f_freq) {
+        fclose(f_rle);
+        return _FILE_INACCESSIBLE;
+    }
     FILE* f_txt = fopen(rm_ext(*path), "wb");
-    if (!f_txt) return _FILE_INACCESSIBLE;
+    if (!f_txt) {
+        fclose(f_rle);
+        fclose(f_freq);
+        return _FILE_INACCESSIBLE;
+    }
     
     // Reads header
-    int n_blocks; 
-    if (fscanf(f_freq, "@R@%d@", &n_blocks) != 1) return _FILE_UNRECOGNIZABLE;
+    int n_blocos; 
+    if (fscanf(f_freq, "@R@%d@", &n_blocos) != 1) return _FILE_UNRECOGNIZABLE;
     
     // Reads from RLE and FREQ , while writting the decompressed version of its contents in the TXT file
-    for (int i = 0; i < n_blocks; ++i) {
+    for (int i = 0; i < n_blocos; ++i) {
         int block_size;
-        if (fscanf(f_freq, "%d[^@]", &block_size) == 1) { // Reads the size of the block
+        if (fscanf(f_freq, "%d@", &block_size) == 1) { // Reads the size of the block
+            printf("Block size: %d\n", block_size);
             _modules_error error;
             char* buffer = load_rle(f_rle, block_size, &error); // Loads block to buffer
             if (!buffer) return error; // When buffer is NULL there was an error in load_rle that should be reported
             int size_sequence;
-            char* sequence = decompress_string(buffer, block_size, &size_sequence);
-            if (!sequence) return _LACK_OF_MEMORY;
+            char* sequence = decompress_string(buffer, block_size, &size_sequence, &error);
             free(buffer);
             int res = fwrite(sequence, 1, size_sequence, f_txt); // Writes decompressed string in txt file
-            if (res != size_sequence) return _FILE_CORRUPTED; 
+            if (res != size_sequence) return _FILE_STREAM_FAILED; 
             free(sequence);
         }
         // Advances all the frequencies of the symbols (they are unnecessary for this process)
-        if (i < n_blocks - 1) {
-            for (int k = 0; k <= n_simb; ++k) { // FIGURE OUT: Porque só funciona com <= em vez de <
-                fscanf(f_freq, "%d[^;]", &block_size);// CORRIGIR: ignores return value
-                fseek(f_freq, 1, SEEK_CUR);
+        if (i < n_blocos - 1) {
+            for (int k = 0, c; k < n_simb; ++k) { 
+                if (fscanf(f_freq, "%d;", &block_size) == 0) {
+                    c = fgetc(f_freq);
+                    if (c != ';' && c != '@') return _FILE_UNRECOGNIZABLE;
+                }
             }
         }
     }
@@ -108,59 +155,84 @@ _modules_error rle_decompress(char** const path)
     return _SUCCESS;
 }
 
-_modules_error shafa_decompress(char ** const path)
+/**
+\brief struct of a btree to save the symbols codes
+*/
+typedef struct btree{
+    char symbol;
+    struct btree *left,*right;
+} *BTree;
+
+_modules_error add_tree(BTree* decoder, char *code, char symbol) 
 {
+    int i = 0;
+    for (i = 0; code[i]; ++i) { 
+        if (*decoder && code[i] == '0') decoder = &(*decoder)->left;
+        else if (*decoder && code[i] == '1') decoder = &(*decoder)->right;
+        else {
+            *decoder = malloc(sizeof(struct btree));
+            if (!(*decoder)) return _LACK_OF_MEMORY;
+            (*decoder)->left = (*decoder)->right = NULL;
+            if (code[i] == '0') decoder = &(*decoder)->left;
+            else decoder = &(*decoder)->right;
+        } 
+    }
+    *decoder = malloc(sizeof(struct btree));
+    (*decoder)->symbol = symbol;
+    (*decoder)->left = (*decoder)->right = NULL;
     return _SUCCESS;
 }
 
-BTree add_tree(BTree decoder, char *code){
-    BTree root=decoder;
-    int i=0;
-    //arvore tem que começar com um nodo
-    while(decoder){
-        if (code[i]=='1'){
-            decoder=decoder->right;
-        }
-        else{
-            decoder=decoder->left;
-        }
-        ++i;
-    }
-    for(;decoder[i];++i){
-        decoder=malloc(sizeof(struct btree));
-        decoder->left = decoder->right = NULL;
-        if (code[i]=='1'){
-            decoder=decoder->right;
-        }
-        else{
-            decoder=decoder->left;
-        }
-    }
+_modules_error create_tree(char *path, int **blocks_sizes, int *size, BTree *decoder) 
+{
+    // Creates a root without meaning
+    *decoder = malloc(sizeof(struct btree));
+    if (!(*decoder)) return _LACK_OF_MEMORY;
+    (*decoder)->left = (*decoder)->right = NULL;
 
-    return root;
-}
+    // Opens cod file
+    char* name_cod = add_ext(rm_ext(path), ".cod");
+    FILE* f_cod = fopen(name_cod, "rb");
+    if (!f_cod) return _FILE_INACCESSIBLE;
 
-_modules_error create_tree(char *path, int **blocks_sizes, int *size, BTree *decoder){
-    FILE* f_cod = fopen(path,"rb");
-    if(!f_cod) return _FILE_UNRECOGNIZABLE;
     // Reads header
-    int j; 
-    if (fscanf(f_freq, "@R@%d@", size) != 1) return _FILE_UNRECOGNIZABLE;
+    if (fscanf(f_cod, "@R@%d", size) != 1) return _FILE_UNRECOGNIZABLE;
     *blocks_sizes = malloc (sizeof(int)*(*size));
     if (!(*blocks_sizes)) return _LACK_OF_MEMORY;
-    // 
-    for (int i = 0; i < size; ++i) {
+
+    // Works block by block
+    for (int i = 0; i < *size; ++i) {
+        // Saves block size in an array for future purposes in rle decompress
         int block_size;
-        if (fscanf(f_freq, "%d[^@]", &block_size) == 1)
-            blocks_sizes[j++]=block_size;
+        if (fscanf(f_cod, "@%d", &block_size) == 1) 
+            *blocks_sizes[i] = block_size;
+        else return _FILE_UNRECOGNIZABLE;
         
-        for (int k = 0; k <= n_simb; ++k) { // FIGURE OUT: Porque só funciona com <= em vez de <
-            char * code;
-            if(fscanf(f_freq, "%s[^;]", code)==1){
-                *decoder = add_tree(*decoder,code);
-            }
-            fseek(f_freq, 1, SEEK_CUR);
+        // Allocates memory for one block of sf codes from .cod
+        char* code = malloc(33151);
+        if (!code) return _LACK_OF_MEMORY;
+        // Loads one block 
+        fscanf(f_cod,"@%[^@]s", code);
+
+        for (int k = 0, l = 0; code[l];) {
+            while (code[l] == ';') {k++;l++;} // Ignores ; but sinalizes that we changed symbol
+            char* sf = malloc(33); // Allocates memory for the code of one symbol
+            if (!sf) return _LACK_OF_MEMORY;
+            int j;
+            for (j = 0; code[l] && code[l] != ';'; ++j)  // Copies the code of one symbol to another string
+                sf[j] = code[l++];
+            sf[j] = '\0';
+            _modules_error error;
+            if (j!=0) error = add_tree(decoder, sf, k); // Adds the symbol to the tree
+            if (!(*decoder)) return error; 
         }
     }
+
+    return _SUCCESS;
+}
+
+_modules_error shafa_decompress(char ** const path)
+{
+    return _SUCCESS;
 }
 

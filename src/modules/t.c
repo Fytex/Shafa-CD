@@ -2,7 +2,7 @@
  *
  *  Author(s): Francisco Neves, Leonardo Freitas
  *  Created Date: 3 Dec 2020
- *  Updated Date: 12 Dec 2020
+ *  Updated Date: 19 Dec 2020
  *
  ***********************************************/
 
@@ -37,15 +37,14 @@ uint32_t frequencies[NUM_SYMBOLS];
 
 void insertSort (uint32_t frequencies[], uint8_t positions[], int left , int right)
 {
-    for (int i = left +1; i<= right ; i++ ){
+    for (int i = left +1; i<= right ; i++){
 
         uint32_t tmpFreq = frequencies[i];
-        uint8_t tmpPos = positions[i];
         uint32_t freq = frequencies[i];
         uint8_t pos = positions[i];
         int j = i - 1;
 
-        while (j >= left && frequencies[j] < tmpFreq  ){
+        while (j >= left && frequencies[j] < tmpFreq){
             frequencies[j+1] = frequencies[j];
             positions[j+1] = positions[j];
             j--;
@@ -59,14 +58,14 @@ void merge (uint32_t frequencies[], uint8_t positions[], int l, int m, int r)
 { 
       
     int len1 = m - l + 1, len2 = r - m; 
-    uint32_t left[len1], right[len2]; 
+    uint32_t freqLeft[len1], freqRight[len2]; 
     uint8_t posLeft[len1], posRight[len2];
     for (int i = 0; i < len1; i++){ 
-        left[i] = frequencies[l + i]; 
+        freqLeft[i] = frequencies[l + i]; 
         posLeft[i] = positions[l + i];
     }
     for (int i = 0; i < len2; i++){
-        right[i] = frequencies[m + 1 + i]; 
+        freqRight[i] = frequencies[m + 1 + i]; 
         posRight[i] = positions[m + 1 + i];
     }
   
@@ -75,25 +74,25 @@ void merge (uint32_t frequencies[], uint8_t positions[], int l, int m, int r)
     int k = l; 
   
     while (i < len1 && j < len2){ 
-        if (left[i] >= right[j]){ 
-            frequencies[k] = left[i]; 
+        if (freqLeft[i] >= freqRight[j]){ 
+            frequencies[k] = freqLeft[i]; 
             positions[k] = posLeft[i];
             i++; 
         } 
         else{
-            frequencies[k] = right[j]; 
-            positions[k] = right[j];
+            frequencies[k] = freqRight[j]; 
+            positions[k] = posRight[j];
             j++; 
         } 
         k++; 
     } 
     for (;i<len1;i++){
-        frequencies[k++] = left[i];
-        positions[k++] = posLeft[i];
+        frequencies[k++] = freqLeft[i];
+        positions[k] = posLeft[i];
     }
     for (;j<len2;j++){
-        frequencies[k++] = right[j];
-        positions[k++] = posRight[j];
+        frequencies[k++] = freqRight[j];
+        positions[k] = posRight[j];
     }
     
 }  
@@ -118,7 +117,7 @@ void timSort(uint32_t frequencies[], uint8_t positions[])
             merge(frequencies, positions, left, mid, right); 
         } 
     } 
-} 
+}  
 
 uint32_t sumFreq (uint32_t frequencies[] ,int first , int last)
 {

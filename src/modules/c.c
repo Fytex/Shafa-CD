@@ -13,24 +13,24 @@
 typedef struct {
     int index;
     int next; 
-    uint8_t * code[MAX_CODE_INT + 1];
+    uint8_t code[MAX_CODE_INT + 1];
 } CodesIndex;
 
 
 int compress_to_file(FILE * const fd_file, FILE * const fd_shafa, const char * const codes_input, const int block_size)
 {
-    int n_chars;
     const char * codes_in_ptr = codes_input;
-    CodesIndex * const * const table = calloc(NUM_OFFSETS * NUM_SYMBOLS, sizeof(CodesIndex));
+    CodesIndex (* table)[NUM_SYMBOLS] = calloc(1, sizeof(CodesIndex[NUM_OFFSETS][NUM_SYMBOLS]));
     CodesIndex header_symbol_row, *symbol_row;
     char cur_char, next_char;
     int bit_idx, code_idx;
     uint8_t byte, next_byte_prefix = 0, mask;
-
+    
     cur_char = *codes_in_ptr++;
-    for (int syb_idx = 0; syb_idx < NUM_SYMBOLS; ++syb_idx) {
+    for (int syb_idx = 0; syb_idx < NUM_SYMBOLS; ++syb_idx) {        
+        code_idx = 0;
         
-        for (code_idx = 0, byte = 0; cur_char != ';' && code_idx < MAX_CODE_INT; ++code_idx) {
+        for ( byte = 0; cur_char != ';' && cur_char != '\0' && code_idx < MAX_CODE_INT; ++code_idx) {
             for (bit_idx = 0; bit_idx < 8; ++bit_idx) {
 
                 next_char = *codes_in_ptr;
@@ -42,26 +42,31 @@ int compress_to_file(FILE * const fd_file, FILE * const fd_shafa, const char * c
                     break;
                 }
                 else if (cur_char != '0') {
-                    free(table);
-                    return _FILE_UNRECOGNIZABLE;
+                    free(*table);
+                    return ;
                 }
 
                 cur_char = next_char;
                 codes_in_ptr++;
                 
-                if (next_char != ';')
+              if (next_char != ';' && bit_idx < 7)
                     byte <<= 1;
 
             }
             table[0][syb_idx].code[code_idx] = byte;
             byte = 0;
         }
-
-        table[0][syb_idx].next = (bit_idx != 8) ? bit_idx * NUM_SYMBOLS : 0;
-        table[0][syb_idx].index = code_idx - 1;
         codes_in_ptr++;
         cur_char = next_char;
+
+        if (code_idx > 0) {
+            table[0][syb_idx].next = (bit_idx != 8) ? bit_idx * NUM_SYMBOLS : 0;
+            table[0][syb_idx].index = code_idx - (bit_idx < 8 ? 1 : 0);
+        } 
+        
+        next_char = *codes_in_ptr;
     }
+        
 
     if (next_char != '\0') { // Check whether file is actually correct (Not required but it is an assert)
         free(table);
@@ -76,10 +81,10 @@ int compress_to_file(FILE * const fd_file, FILE * const fd_shafa, const char * c
 
             symbol_row = &table[offset][idx];
 
-            bit_offset = header_symbol_row.next / NUM_SYMBOLS + offset
+            bit_offset = header_symbol_row.next / NUM_SYMBOLS + offset;
             new_index = header_symbol_row.index + (bit_offset < 8 ? 0: 1);
             symbol_row->index = new_index;
-            symbol_row->next = ((bit_offset < 8) : bit_offset : bit_offset - 8) * NUM_OFFSETS;
+            symbol_row->next = ((bit_offset < 8) ? bit_offset : bit_offset - 8) * NUM_OFFSETS;
             
             for (int code_idx = 0; code_idx < new_index; ++code_idx) {
 
@@ -150,7 +155,7 @@ _modules_error shafa_compress(char ** const path)
                                 fscanf(fd_codes,"@%d@%[^@]s",&block_size,block_input);
 
                                 // A função compress_to_file vai criar a tabela através da string dada e vai escrever no ficheiro
-                                compress_to_file(fd_file, fd_codes, fd_shafa, block_size, block_input); // use semaphore (mutex) [only when multithreading]
+                                compress_to_file(fd_file, fd_shafa, block_input, block_size); // use semaphore (mutex) [only when multithreading]
                             }
 
 

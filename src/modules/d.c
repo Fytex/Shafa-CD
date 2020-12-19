@@ -125,7 +125,6 @@ _modules_error rle_decompress(char** const path)
     for (int i = 0; i < n_blocos; ++i) {
         int block_size;
         if (fscanf(f_freq, "%d@", &block_size) == 1) { // Reads the size of the block
-            printf("Block size: %d\n", block_size);
             _modules_error error;
             char* buffer = load_rle(f_rle, block_size, &error); // Loads block to buffer
             if (!buffer) return error; // When buffer is NULL there was an error in load_rle that should be reported
@@ -155,13 +154,7 @@ _modules_error rle_decompress(char** const path)
     return _SUCCESS;
 }
 
-/**
-\brief struct of a btree to save the symbols codes
-*/
-typedef struct btree{
-    char symbol;
-    struct btree *left,*right;
-} *BTree;
+
 
 _modules_error add_tree(BTree* decoder, char *code, char symbol) 
 {
@@ -231,8 +224,57 @@ _modules_error create_tree(char *path, int **blocks_sizes, int *size, BTree *dec
     return _SUCCESS;
 }
 
-_modules_error shafa_decompress(char ** const path)
+_modules_error shafa_decompress(char ** const path) 
 {
+    // Creates the tree 
+    int* blocks_sizes, size;
+    BTree decoder;
+    _modules_error error = create_tree(*path, &blocks_sizes, &size, &decoder);
+    if (error != _SUCCESS) return error;
+    BTree root = decoder;
+
+    // Opens the shafa file and decompressed file
+    FILE* f_shafa = fopen(*path, "rb");
+    if (!f_shafa) return _FILE_INACCESSIBLE;
+
+    // Reads header of shafa file
+    int n_blocks;
+    char mode;
+    if (fscanf(f_shafa, "@%c@%d", &mode, &n_blocks) != 2) return _FILE_UNRECOGNIZABLE;
+    printf("NUMERO DE BLOCOS: %d\n", n_blocks);
+    
+    // Opens file to write in
+    char* path_wrt = rm_ext(*path);
+    if (!path_wrt) return _LACK_OF_MEMORY;
+    FILE* f_wrt = fopen(path_wrt, "wb");
+    if (!f_wrt) return _FILE_INACCESSIBLE;
+
+    // Uses the tree to decompress
+    int l = 0;
+    for (int i = 0; i < n_blocks; ++i) {
+        char* shafa_code = malloc(sizeof(char)*blocks_sizes[i]);
+        if (!shafa_code) return _LACK_OF_MEMORY;
+        char* decomp = malloc(sizeof(char)*blocks_sizes[i]);
+        if (!decomp) return _LACK_OF_MEMORY;
+        
+        if (fscanf(f_shafa, "@%[^@]s", shafa_code) == 0) return _LACK_OF_MEMORY;
+        else {
+            
+            for (int j = 0; shafa_code[j]; j++) {
+                if (shafa_code[j] == '0') decoder = decoder->left;
+                else decoder = decoder->right;
+                if (decoder && !(decoder->left) && !(decoder->right)) {
+                    decomp[l++] = decoder->symbol;
+                    decoder = root;
+                }
+            }
+        }
+        decomp[++l] = '\0';
+        int res = fwrite(decomp, 1, ++l, f_wrt);
+        if (res != l) return _FILE_STREAM_FAILED;
+        free(decomp);
+    }
+    
     return _SUCCESS;
 }
 

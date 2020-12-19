@@ -4,6 +4,14 @@
 #include "utils/errors.h"
 
 /**
+\brief struct of a btree to save the symbols codes
+*/
+typedef struct btree{
+    char symbol;
+    struct btree *left,*right;
+} *BTree;
+
+/**
 \brief Loads a block of a RLE file into a string
  @param f_rle RLE file that will be saved in the string
  @param block_size Size of the block that is going to be loaded

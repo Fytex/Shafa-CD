@@ -13,13 +13,16 @@
 #include <string.h>
 
 #define RUN 32
-#define nsimb 256
-#define min(a,b) (a > b ? b : a) 
+#define NUM_SYMBOLS 256
+#define min(a,b)       \
+({ typeof (a) _a = (a);\
+   typeof (b) _b = (b);\
+   _a < _b ? _a : _b; })
 
 char codType;
 int numOfBlocks;
-uint8_t positions [nsimb];
-uint32_t frequencies[nsimb];
+uint8_t positions [NUM_SYMBOLS];
+uint32_t frequencies[NUM_SYMBOLS];
 
 /* typedef struct Symbol 
 {
@@ -31,6 +34,7 @@ uint32_t frequencies[nsimb];
 // Symbol symbols[256];
 
 // uint_8 * output[256];
+
 void insertSort (uint32_t frequencies[], uint8_t positions[], int left , int right)
 {
     for (int i = left +1; i<= right ; i++ ){
@@ -96,7 +100,7 @@ void merge (uint32_t frequencies[], uint8_t positions[], int l, int m, int r)
 
 void timSort(uint32_t frequencies[], uint8_t positions[]) 
 { 
-    int n = nsimb;
+    int n = NUM_SYMBOLS;
     // Sort individual subarrays of size RUN.
     for (int i = 0; i < n; i+=RUN) 
         insertSort(frequencies, positions, i, min((i+31),(n-1))); 
@@ -150,17 +154,17 @@ int bestDivision (uint32_t frequencies[], int first, int last)
         
 }
 
-void startCodes (unsigned char *codes[256])
+void startCodes (unsigned char *codes[NUM_SYMBOLS])
 {
-   for (int i = 0; i < 256; ++i){
-     codes[i] = malloc((257) * sizeof(unsigned char));
-     for (int j = 0; j < 256; ++j) codes[i][j] = '0';
+   for (int i = 0; i < NUM_SYMBOLS; ++i){
+     codes[i] = malloc((NUM_SYMBOLS + 1) * sizeof(unsigned char));
+     for (int j = 0; j < NUM_SYMBOLS + 1; ++j) codes[i][j] = '2';
    }
 }
 
 void startPositions(uint8_t positions[])
 {
-    for (int i = 0; i < 256; ++i) positions[i] = i;
+    for (int i = 0; i < NUM_SYMBOLS; ++i) positions[i] = i;
 }
 
 /* void updateSymbol(uint32_t freq[])
@@ -179,7 +183,7 @@ int readBlock (FILE* f)
     fscanf(f, "%d", &blockSize);             // reads the current Block size
     fgetc(f);                               // gets @
     int frequency;                  
-    for (int i = 0; i < 256; i++) {       // loop to read all 256 symbols
+    for (int i = 0; i < NUM_SYMBOLS; i++) {       // loop to read all 256 symbols
         fscanf(f, "%d", &frequency);     // reads the frequency of the symbol number i
         frequencies[i] = frequency;     // updates the array with the frequency
         fgetc(f);                      // gets ;

@@ -131,6 +131,7 @@ static bool parse(const int argc, char * const argv[], Options * const options, 
 _modules_error execute_modules(Options options, char ** const ptr_file) // better copying only a few bytes instead of dereferncing all of them
 {
     _modules_error error;
+    char * tmp_file;
     
     if (options.module_f) {
         error = freq_rle_compress(ptr_file, options.f_force_rle, options.block_size); // Returns true if file was RLE compressed
@@ -142,6 +143,23 @@ _modules_error execute_modules(Options options, char ** const ptr_file) // bette
     }
 
     if (options.module_t) {
+
+        if (!options.module_f) {
+            if (check_ext(*ptr_file, FREQ_EXT)) {
+                tmp_file = rm_ext(*ptr_file);
+
+                if (!tmp_file)
+                    return _LACK_OF_MEMORY;
+
+                free(*ptr_file);
+                *ptr_file = tmp_file;
+            }       
+            else {
+                fprintf(stderr, "Module d: Wrong extension... Should end in %s\n", FREQ_EXT);
+                return _OUTSIDE_MODULE;
+            }
+        }
+
         error = get_shafa_codes(*ptr_file); // If file doesn't end in .rle then its considered an uncompressed one
 
         if (error) {

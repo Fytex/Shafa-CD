@@ -21,43 +21,81 @@ int compress_to_file(FILE * const fd_file, FILE * const fd_shafa, const char * c
 {
     int n_chars;
     const char * codes_in_ptr = codes_input;
-    CodesIndex * const table = calloc(NUM_OFFSETS * NUM_SYMBOLS, sizeof(CodesIndex));
-    char tmp;
-    int bit_idx, code_idx, byte;
+    CodesIndex * const * const table = calloc(NUM_OFFSETS * NUM_SYMBOLS, sizeof(CodesIndex));
+    CodesIndex header_symbol_row, *symbol_row;
+    char cur_char, next_char;
+    int bit_idx, code_idx;
+    uint8_t byte, next_byte_prefix = 0, mask;
 
+    cur_char = *codes_in_ptr++;
     for (int syb_idx = 0; syb_idx < NUM_SYMBOLS; ++syb_idx) {
-        for (code_idx = 0, byte = 0; *codes_in_ptr != ';' && code_idx < MAX_CODE_INT; ++code_idx) {
+        
+        for (code_idx = 0, byte = 0; cur_char != ';' && code_idx < MAX_CODE_INT; ++code_idx) {
             for (bit_idx = 0; bit_idx < 8; ++bit_idx) {
 
-                tmp = *codes_in_ptr++;
-                if (tmp == '1') ++byte;
-                else if (tmp == ';') {
+                next_char = *codes_in_ptr;
+
+                if (cur_char == '1') ++byte;
+                else if (cur_char == ';') {
                     if (bit_idx)
                         byte <<= 8 - bit_idx;
                     break;
                 }
-                else if (tmp != '0') {
+                else if (cur_char != '0') {
                     free(table);
                     return _FILE_UNRECOGNIZABLE;
                 }
-            
-                byte <<= 1;
+
+                cur_char = next_char;
+                codes_in_ptr++;
+                
+                if (next_char != ';')
+                    byte <<= 1;
+
             }
-            table[syb_idx].code[code_idx] = byte;
+            table[0][syb_idx].code[code_idx] = byte;
             byte = 0;
         }
 
-        table[syb_idx].next = (bit_idx != 8) ? bit_idx * NUM_SYMBOLS : 0;
-        table[syb_idx].index = code_idx - 1;
+        table[0][syb_idx].next = (bit_idx != 8) ? bit_idx * NUM_SYMBOLS : 0;
+        table[0][syb_idx].index = code_idx - 1;
+        codes_in_ptr++;
+        cur_char = next_char;
     }
 
-    /*
-    i = 3
-    next_byte_extra = (*codes & (2^i - 1)) << (8-i)
-    *codes =>> i
-    ++codes
-    *codes = *codes | byte_extra
-    */
+    if (next_char != '\0') { // Check whether file is actually correct (Not required but it is an assert)
+        free(table);
+        return _FILE_UNRECOGNIZABLE;
+    }
+
+    for (int idx = 0, new_index; idx < NUM_SYMBOLS; ++idx) {
+
+        header_symbol_row = table[0][idx];
+
+        for (int offset = 1, bit_offset; offset < NUM_OFFSETS; ++offset) {
+
+            symbol_row = &table[offset][idx];
+
+            bit_offset = header_symbol_row.next / NUM_SYMBOLS + offset
+            new_index = header_symbol_row.index + (bit_offset < 8 ? 0: 1);
+            symbol_row->index = new_index;
+            symbol_row->next = ((bit_offset < 8) : bit_offset : bit_offset - 8) * NUM_OFFSETS;
+            
+            for (int code_idx = 0; code_idx < new_index; ++code_idx) {
+
+                byte = header_symbol_row.code[code_idx];
+                symbol_row->code[code_idx] = (byte >> offset) | next_byte_prefix;
+
+                mask = (1 << offset) - 1;
+                next_byte_prefix = byte & mask;
+
+            }
+
+            byte = header_symbol_row.code[new_index];
+            symbol_row->code[new_index] = (byte >> offset) | next_byte_prefix;
+            
+        }
+    }
 
    return 0;
 }

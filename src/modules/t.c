@@ -18,10 +18,7 @@
 #define RUN 32
 #define NUM_SYMBOLS 256
 
-#define min(a,b) \
-   ({ __typeof__ (a) _a = (a); \
-       __typeof__ (b) _b = (b); \
-     _a < _b ? _a : _b; })
+#define MIN(a,b) ((a) < (b) ? a : b)
 
 
 uint8_t positions [NUM_SYMBOLS];
@@ -117,7 +114,7 @@ void timSort(uint32_t frequencies[], uint8_t positions[])
     int n = NUM_SYMBOLS;
     // Sort individual subarrays of size RUN.
     for (int i = 0; i < n; i += RUN) 
-        insertSort (frequencies, positions, i, min((i+31),(n-1))); 
+        insertSort (frequencies, positions, i, MIN((i+31),(n-1))); 
   
     // Start merging from size RUN (or 32).  
     for (int size = RUN; size < n; size = 2*size) 
@@ -126,7 +123,7 @@ void timSort(uint32_t frequencies[], uint8_t positions[])
         for (int left = 0; left < n; left += 2*size) 
         {// find ending point of left sub array and mid+1 is starting point of right sub array.
             int mid = left + size - 1; 
-            int right = min((left + 2*size - 1),(n-1)); 
+            int right = MIN((left + 2*size - 1),(n-1)); 
   
             // merge sub array left with sub array right.
             merge(frequencies, positions, left, mid, right); 
@@ -316,7 +313,7 @@ _modules_error get_shafa_codes(const char * path)
                                 sf_codes(frequencies,codes,0,freq_notnull);
 
                                 //Now it is just write to the .cod the codes
-                                
+
 
                                 free(codes);
 

@@ -1,3 +1,6 @@
+#include <stdio.h>
+#include <stdlib.h>
+
 /*
 Function fsize() to get the size of files and the number of blocks contained
 in the file (for a given block size).
@@ -35,9 +38,6 @@ This code is open source and free to use as long as the original author is ident
 
 (c) 2020, Bruno A.F. Dias - University of Minho, Informatics Department
 */
-
-#include <stdio.h>
-#include <stdlib.h>
 
 #define FSIZE_DEFAULT_BLOCK_SIZE 524288         // Default block size = 512 KBytes
 #define FSIZE_MIN_BLOCK_SIZE 512                // Min block size = 512 Bytes
@@ -83,7 +83,9 @@ long long fsize(FILE *fp_in, unsigned char *filename, unsigned long *the_block_s
       { *size_of_last_block = total - n_blocks*block_size;
         n_blocks++;
       }
-      return(n_blocks);
+      fseek_error = fseek(fp, 0L, SEEK_SET);
+      if (fseek_error) return (FSIZE_ERROR_IN_FILE);
+      else return(n_blocks);
     }
 
     n_blocks = FSIZE_MAX_SIZE_FSEEK/block_size-1; // In reality fseek() can't handle FSIZE_MAX_SIZE_FSEEK of 2GBytes, so let's use a smaller size

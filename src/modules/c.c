@@ -93,21 +93,24 @@ int compress_to_file(FILE * const fd_file, FILE * const fd_shafa, const char * c
             bit_offset = header_symbol_row.next / NUM_SYMBOLS + offset;
             new_index = header_symbol_row.index + (bit_offset < 8 ? 0: 1);
             symbol_row->index = new_index;
-            symbol_row->next = ((bit_offset < 8) ? bit_offset : bit_offset - 8) * NUM_OFFSETS;
-            
+            symbol_row->next = ((bit_offset < 8) ? bit_offset : bit_offset - 8) * NUM_SYMBOLS;
+
+            next_byte_prefix = 0;
             for (int code_idx = 0; code_idx < new_index; ++code_idx) {
 
                 byte = header_symbol_row.code[code_idx];
-                symbol_row->code[code_idx] = (byte >> offset) | next_byte_prefix;
+                symbol_row->code[code_idx] = (byte >> offset) | (next_byte_prefix << (8 - offset));
 
                 mask = (1 << offset) - 1;
                 next_byte_prefix = byte & mask;
 
             }
 
-            byte = header_symbol_row.code[new_index];
-            symbol_row->code[new_index] = (byte >> offset) | next_byte_prefix;
-            
+            // This will only execute if next != 8*N. where N = 256 symbols. Because this iteration is unnecessary
+            if (bit_offset != 8) {
+                byte = header_symbol_row.code[new_index];
+                symbol_row->code[new_index] = (byte >> offset) | (next_byte_prefix << (8 - offset));
+            }
         }
     }
 
@@ -156,7 +159,7 @@ _modules_error shafa_compress(char ** const path)
 
                         if (fd_shafa) {
 
-                            block_input = malloc(33151); //sum 1 to 256 (worst case shannon fano) + 255 semicolons 
+                            block_input = malloc(33152); //sum 1 to 256 (worst case shannon fano) + 255 semicolons  + 1 extra byte for algorithm efficiency avoiding 256 compares
 
 
                             for (int i = 0; i < num_blocks; ++i) {

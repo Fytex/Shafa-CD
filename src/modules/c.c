@@ -25,48 +25,57 @@ int compress_to_file(FILE * const fd_file, FILE * const fd_shafa, const char * c
     char cur_char, next_char;
     int bit_idx, code_idx;
     uint8_t byte, next_byte_prefix = 0, mask;
-    
+
     cur_char = *codes_in_ptr++;
-    for (int syb_idx = 0; syb_idx < NUM_SYMBOLS; ++syb_idx) {        
+    next_char = *codes_in_ptr++;
+    for (int syb_idx = 0; syb_idx < NUM_SYMBOLS; ++syb_idx) {
+
         code_idx = 0;
-        
-        for ( byte = 0; cur_char != ';' && cur_char != '\0' && code_idx < MAX_CODE_INT; ++code_idx) {
+
+        for ( ; cur_char != ';' && cur_char != '\0' && code_idx < MAX_CODE_INT; ++code_idx) {
+            byte = 0;
             for (bit_idx = 0; bit_idx < 8; ++bit_idx) {
 
-                next_char = *codes_in_ptr;
-
-                if (cur_char == '1') ++byte;
-                else if (cur_char == ';') {
-                    if (bit_idx)
-                        byte <<= 8 - bit_idx;
-                    break;
-                }
+                if (cur_char == '1')
+                    ++byte;
                 else if (cur_char != '0') {
-                    free(*table);
-                    return ;
+                    free(table);
+                    return _FILE_UNRECOGNIZABLE;
+                }
+
+                if (bit_idx < 7) {
+                    if (next_char == ';') {
+                        byte <<= 7 - bit_idx;
+                        cur_char = next_char;
+                        next_char = *codes_in_ptr++;
+                        break;
+                    }
+                    else if (next_char == '\0') {
+                        byte <<= 7 - bit_idx;
+                        cur_char = next_char;
+                        break;
+                    }
+                    else
+                        byte <<= 1;
                 }
 
                 cur_char = next_char;
-                codes_in_ptr++;
-                
-              if (next_char != ';' && bit_idx < 7)
-                    byte <<= 1;
+                next_char = *codes_in_ptr++;
 
             }
             table[0][syb_idx].code[code_idx] = byte;
-            byte = 0;
         }
-        codes_in_ptr++;
+
         cur_char = next_char;
+        next_char = *codes_in_ptr++;
 
         if (code_idx > 0) {
-            table[0][syb_idx].next = (bit_idx != 8) ? bit_idx * NUM_SYMBOLS : 0;
+            table[0][syb_idx].next = (bit_idx != 8) ? (bit_idx + 1) * NUM_SYMBOLS : 0;
             table[0][syb_idx].index = code_idx - (bit_idx < 8 ? 1 : 0);
-        } 
-        
-        next_char = *codes_in_ptr;
+        }
+
     }
-        
+   
 
     if (next_char != '\0') { // Check whether file is actually correct (Not required but it is an assert)
         free(table);

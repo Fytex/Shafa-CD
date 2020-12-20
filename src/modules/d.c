@@ -118,11 +118,11 @@ _modules_error rle_decompress(char** const path)
     }
     
     // Reads header
-    int n_blocos; 
-    if (fscanf(f_freq, "@R@%d@", &n_blocos) != 1) return _FILE_UNRECOGNIZABLE;
+    int n_blocks; 
+    if (fscanf(f_freq, "@R@%d@", &n_blocks) != 1) return _FILE_UNRECOGNIZABLE;
     
     // Reads from RLE and FREQ , while writting the decompressed version of its contents in the TXT file
-    for (int i = 0; i < n_blocos; ++i) {
+    for (int i = 0; i < n_blocks; ++i) {
         int block_size;
         if (fscanf(f_freq, "%d@", &block_size) == 1) { // Reads the size of the block
             _modules_error error;
@@ -136,7 +136,7 @@ _modules_error rle_decompress(char** const path)
             free(sequence);
         }
         // Advances all the frequencies of the symbols (they are unnecessary for this process)
-        if (i < n_blocos - 1) {
+        if (i < n_blocks - 1) {
             for (int k = 0, c; k < n_simb; ++k) { 
                 if (fscanf(f_freq, "%d;", &block_size) == 0) {
                     c = fgetc(f_freq);
@@ -155,11 +155,19 @@ _modules_error rle_decompress(char** const path)
 }
 
 
+/**
+\brief struct of a btree to save the symbols codes
+*/
+typedef struct btree{
+    char symbol;
+    struct btree *left,*right;
+} *BTree;
+
 
 _modules_error add_tree(BTree* decoder, char *code, char symbol) 
 {
     int i = 0;
-    for (i = 0; code[i]; ++i) { 
+    for (i = 0; code[i]; ++i) {
         if (*decoder && code[i] == '0') decoder = &(*decoder)->left;
         else if (*decoder && code[i] == '1') decoder = &(*decoder)->right;
         else {
@@ -178,49 +186,48 @@ _modules_error add_tree(BTree* decoder, char *code, char symbol)
 
 _modules_error create_tree(char *path, int **blocks_sizes, int *size, BTree *decoder) 
 {
-    // Creates a root without meaning
     *decoder = malloc(sizeof(struct btree));
     if (!(*decoder)) return _LACK_OF_MEMORY;
     (*decoder)->left = (*decoder)->right = NULL;
 
-    // Opens cod file
     char* name_cod = add_ext(rm_ext(path), ".cod");
     FILE* f_cod = fopen(name_cod, "rb");
     if (!f_cod) return _FILE_INACCESSIBLE;
-
-    // Reads header
-    if (fscanf(f_cod, "@R@%d", size) != 1) return _FILE_UNRECOGNIZABLE;
+    
+    char mode;
+    if (fscanf(f_cod, "@%c@%d", &mode, size) != 2) return _FILE_UNRECOGNIZABLE;
+  
     *blocks_sizes = malloc (sizeof(int)*(*size));
     if (!(*blocks_sizes)) return _LACK_OF_MEMORY;
-
-    // Works block by block
+   
     for (int i = 0; i < *size; ++i) {
-        // Saves block size in an array for future purposes in rle decompress
         int block_size;
         if (fscanf(f_cod, "@%d", &block_size) == 1) 
             *blocks_sizes[i] = block_size;
         else return _FILE_UNRECOGNIZABLE;
-        
-        // Allocates memory for one block of sf codes from .cod
         char* code = malloc(33151);
         if (!code) return _LACK_OF_MEMORY;
-        // Loads one block 
-        fscanf(f_cod,"@%[^@]s", code);
+        fscanf(f_cod,"@%[^@]s", code); // FIX
 
         for (int k = 0, l = 0; code[l];) {
-            while (code[l] == ';') {k++;l++;} // Ignores ; but sinalizes that we changed symbol
-            char* sf = malloc(33); // Allocates memory for the code of one symbol
+            while (code[l] == ';') {
+                k++;
+                l++;
+            }
+            char* sf = malloc(33);
             if (!sf) return _LACK_OF_MEMORY;
             int j;
-            for (j = 0; code[l] && code[l] != ';'; ++j)  // Copies the code of one symbol to another string
+            for (j = 0; code[l] && code[l] != ';'; ++j)  
                 sf[j] = code[l++];
             sf[j] = '\0';
             _modules_error error;
-            if (j!=0) error = add_tree(decoder, sf, k); // Adds the symbol to the tree
-            if (!(*decoder)) return error; 
+            if (j!=0) {
+                error = add_tree(decoder, sf, k);
+                if (error != _SUCCESS) return error;
+            }
         }
     }
-
+    
     return _SUCCESS;
 }
 
@@ -240,26 +247,25 @@ _modules_error shafa_decompress(char ** const path)
     // Reads header of shafa file
     int n_blocks;
     char mode;
-    if (fscanf(f_shafa, "@%c@%d", &mode, &n_blocks) != 2) return _FILE_UNRECOGNIZABLE;
-    printf("NUMERO DE BLOCOS: %d\n", n_blocks);
-    
+    if (fscanf(f_shafa, "@%d", &n_blocks) != 1) return _FILE_UNRECOGNIZABLE;
+
     // Opens file to write in
     char* path_wrt = rm_ext(*path);
     if (!path_wrt) return _LACK_OF_MEMORY;
     FILE* f_wrt = fopen(path_wrt, "wb");
     if (!f_wrt) return _FILE_INACCESSIBLE;
 
-    // Uses the tree to decompress
     int l = 0;
     for (int i = 0; i < n_blocks; ++i) {
-        char* shafa_code = malloc(sizeof(char)*blocks_sizes[i]);
+        int sf_bsize;
+        if (fscanf(f_shafa, "@%d", &sf_bsize) != 1) return _FILE_UNRECOGNIZABLE;
+        char* shafa_code = malloc(sf_bsize + 1);
         if (!shafa_code) return _LACK_OF_MEMORY;
         char* decomp = malloc(sizeof(char)*blocks_sizes[i]);
         if (!decomp) return _LACK_OF_MEMORY;
         
         if (fscanf(f_shafa, "@%[^@]s", shafa_code) == 0) return _LACK_OF_MEMORY;
         else {
-            
             for (int j = 0; shafa_code[j]; j++) {
                 if (shafa_code[j] == '0') decoder = decoder->left;
                 else decoder = decoder->right;

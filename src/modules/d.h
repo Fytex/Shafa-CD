@@ -3,32 +3,6 @@
 
 #include "utils/errors.h"
 
-/**
-\brief struct of a btree to save the symbols codes
-*/
-typedef struct btree{
-    char symbol;
-    struct btree *left,*right;
-} *BTree;
-
-/**
-\brief Loads a block of a RLE file into a string
- @param f_rle RLE file that will be saved in the string
- @param block_size Size of the block that is going to be loaded
- @param error Address to load error in case of unsuccess
- @returns String with the loaded contents
-*/
-char* load_rle (FILE* f_rle, int block_size, _modules_error* error);
-
-/**
-\brief Decompresses from the RLE format to the original one
- @param buffer String that contains a block of the RLE file
- @param block_size Size of the block that is going to be decompressed
- @param size_sequence Adress in which to load the size of the decompressed string
- @param error Address to load error in case of unsucess
- @returns Decompressed string
-*/
-char* decompress_string (char* buffer, int block_size, int* size_sequence, _modules_error* error);
 
 /**
 \brief Decompresses file which was compressed with RLE's algorithm and saves it to disk
@@ -37,11 +11,6 @@ char* decompress_string (char* buffer, int block_size, int* size_sequence, _modu
 */
 _modules_error rle_decompress(char ** path);
 
-// COMENTAR ISTO
-
-_modules_error add_tree(BTree* decoder, char *code, char symbol);
-
-_modules_error create_tree(char *path, int **blocks_sizes, int *size, BTree *decoder);
 
 /**
 \brief Decompresses file which was compressed with Shannon Fano's algorithm and saves it to disk

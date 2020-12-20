@@ -2,7 +2,7 @@
  *
  *  Author(s): Pedro Tavares
  *  Created Date: 3 Dec 2020
- *  Updated Date: 15 Dec 2020
+ *  Updated Date: 20 Dec 2020
  *
  ***********************************************/
 
@@ -19,11 +19,6 @@
 #include "modules/utils/file.h"
 #include "modules/utils/errors.h"
 #include "modules/utils/extensions.h"
-
-#define max(a,b)           \
-  ({ typeof (a) _a = (a);  \
-      typeof (b) _b = (b); \
-    _a > _b ? _a : _b; })
 
 
 typedef struct {

@@ -17,17 +17,23 @@ typedef struct {
 } CodesIndex;
 
 
-int compress_to_file(FILE * const fd_file, FILE * const fd_shafa, const char * const codes_input, const int block_size)
+static int compress_to_file(FILE * const fd_file, FILE * const fd_shafa, const char * block_codes, const uint8_t * const block_input, const int block_size)
 {
-    const char * codes_in_ptr = codes_input;
-    CodesIndex (* table)[NUM_SYMBOLS] = calloc(1, sizeof(CodesIndex[NUM_OFFSETS][NUM_SYMBOLS]));
+    CodesIndex * table = calloc(NUM_OFFSETS * NUM_SYMBOLS, CodesIndex));
     CodesIndex header_symbol_row, *symbol_row;
     char cur_char, next_char;
     int bit_idx, code_idx;
     uint8_t byte, next_byte_prefix = 0, mask;
 
-    cur_char = *codes_in_ptr++;
-    next_char = *codes_in_ptr++;
+
+    /*
+    /
+    /    Table's header initialization
+    /
+    */
+
+    cur_char = *block_codes++;
+    next_char = *block_codes++;
     for (int syb_idx = 0; syb_idx < NUM_SYMBOLS; ++syb_idx) {
 
         code_idx = 0;
@@ -47,7 +53,7 @@ int compress_to_file(FILE * const fd_file, FILE * const fd_shafa, const char * c
                     if (next_char == ';') {
                         byte <<= 7 - bit_idx;
                         cur_char = next_char;
-                        next_char = *codes_in_ptr++;
+                        next_char = *block_codes++;
                         break;
                     }
                     else if (next_char == '\0') {
@@ -60,18 +66,18 @@ int compress_to_file(FILE * const fd_file, FILE * const fd_shafa, const char * c
                 }
 
                 cur_char = next_char;
-                next_char = *codes_in_ptr++;
+                next_char = *block_codes++;
 
             }
-            table[0][syb_idx].code[code_idx] = byte;
+            table[syb_idx].code[code_idx] = byte;
         }
 
         cur_char = next_char;
-        next_char = *codes_in_ptr++;
+        next_char = *block_codes++;
 
         if (code_idx > 0) {
-            table[0][syb_idx].next = (bit_idx != 8) ? (bit_idx + 1) * NUM_SYMBOLS : 0;
-            table[0][syb_idx].index = code_idx - (bit_idx < 8 ? 1 : 0);
+            table[syb_idx].next = (bit_idx != 8) ? (bit_idx + 1) * NUM_SYMBOLS : 0;
+            table[syb_idx].index = code_idx - (bit_idx < 8 ? 1 : 0);
         }
 
     }
@@ -82,13 +88,20 @@ int compress_to_file(FILE * const fd_file, FILE * const fd_shafa, const char * c
         return _FILE_UNRECOGNIZABLE;
     }
 
+
+    /*
+    /
+    /    Table's body initialization
+    /
+    */
+
     for (int idx = 0, new_index; idx < NUM_SYMBOLS; ++idx) {
 
-        header_symbol_row = table[0][idx];
+        header_symbol_row = table[idx];
 
         for (int offset = 1, bit_offset; offset < NUM_OFFSETS; ++offset) {
 
-            symbol_row = &table[offset][idx];
+            symbol_row = &table[offset * NUM_SYMBOLS + idx];
 
             bit_offset = header_symbol_row.next / NUM_SYMBOLS + offset;
             new_index = header_symbol_row.index + (bit_offset < 8 ? 0: 1);
@@ -114,7 +127,24 @@ int compress_to_file(FILE * const fd_file, FILE * const fd_shafa, const char * c
         }
     }
 
-   return 0;
+    
+    /*
+    /
+    /    Write to .shaf
+    /
+    */
+
+   for (int idx = 0; idx < block_size; ++idx) {
+
+        byte = *block_input;
+        symbol_row = table + byte;
+
+    
+    
+
+
+   }
+
 }
 
 
@@ -124,9 +154,10 @@ _modules_error shafa_compress(char ** const path)
     char * path_file = *path;
     char * path_codes;
     char * path_shafa;
-    char * block_input;
+    char * block_codes, * block_input;
     char mode;
-    int num_blocks, block_size;
+    long long num_blocks;
+    int block_size;
     int error = _SUCCESS;
 
     
@@ -141,7 +172,7 @@ _modules_error shafa_compress(char ** const path)
 
         if (fd_codes) {
 
-            if (fscanf(fd_codes, "@%c@%d", &mode, &num_blocks) == 2) {
+            if (fscanf(fd_codes, "@%c@%lld", &mode, &num_blocks) == 2) {
 
                 // Open File's handle
                 fd_file = fopen(path_file, "rb");
@@ -159,16 +190,41 @@ _modules_error shafa_compress(char ** const path)
 
                         if (fd_shafa) {
 
-                            block_input = malloc(33152); //sum 1 to 256 (worst case shannon fano) + 255 semicolons  + 1 extra byte for algorithm efficiency avoiding 256 compares
+                            block_codes = malloc(33153); //sum 1 to 256 (worst case shannon fano) + 255 semicolons + 1 byte NULL + 1 extra byte for algorithm efficiency avoiding 256 compares
 
+                           if (block_codes) {
 
-                            for (int i = 0; i < num_blocks; ++i) {
+                                if (fprintf(fd_shafa, "@%lld", num_blocks) >= 2) {
 
-                                fscanf(fd_codes,"@%d@%[^@]s",&block_size,block_input);
+                                    for (long long i = 0; i < num_blocks; ++i) {
 
-                                // A função compress_to_file vai criar a tabela através da string dada e vai escrever no ficheiro
-                                compress_to_file(fd_file, fd_shafa, block_input, block_size); // use semaphore (mutex) [only when multithreading]
-                            }
+                                        if (fscanf(fd_codes,"@%d@%33151[^@]s", &block_size, block_codes) != 2) {
+                                            error = _FILE_STREAM_FAILED;
+                                            break;
+                                        }
+
+                                        block_input = malloc(block_size);
+
+                                        if (!block_input) {
+                                            error = _LACK_OF_MEMORY;
+                                            break;
+                                        }
+                                        
+                                        if (fread(block_input, sizeof(uint8_t), block_size, fd_file) != block_size) {
+                                            error = _FILE_STREAM_FAILED;
+                                            break;
+                                        }
+
+                                        // A função compress_to_file vai criar a tabela através da string dada e vai escrever no ficheiro
+                                        compress_to_file(fd_file, fd_shafa, block_codes, block_input, block_size); // use semaphore (mutex) [only when multithreading]
+
+                                    }
+                                }
+                                else
+                                    error = _FILE_STREAM_FAILED;
+                            
+                            free(block_codes);
+                           }
 
 
                             fclose(fd_shafa);

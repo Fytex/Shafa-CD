@@ -132,8 +132,9 @@ _modules_error rle_decompress(char** const path)
             char* sequence = decompress_string(buffer, block_size, &size_sequence, &error);
             free(buffer);
             int res = fwrite(sequence, 1, size_sequence, f_txt); // Writes decompressed string in txt file
-            if (res != size_sequence) return _FILE_STREAM_FAILED; 
             free(sequence);
+            if (res != size_sequence) return _FILE_STREAM_FAILED; 
+            
         }
         // Advances all the frequencies of the symbols (they are unnecessary for this process)
         if (i < n_blocks - 1) {
@@ -163,6 +164,15 @@ typedef struct btree{
     struct btree *left,*right;
 } *BTree;
 
+void free_tree(BTree a) {
+
+    if (a) {
+        free_tree(a->right);
+        free_tree(a->left);
+        free(a);
+    }
+
+}
 
 _modules_error add_tree(BTree* decoder, char *code, char symbol) 
 {
@@ -313,13 +323,13 @@ _modules_error shafa_decompress (char ** const path) {
                                                     char* shafa_code = malloc(sf_bsize+1);
                                                     if (shafa_code) {
 
-                                                        char* decomp = malloc(992); // substituir
+                                                        char* decomp = malloc(block_sizes[i]+1);
                                                         if (decomp) {
 
                                                             if (fread(shafa_code, 1, sf_bsize, f_shafa) == sf_bsize) {
 
-                                                                for (int j = 0; shafa_code[j]; j++) {
-
+                                                                for (int j = 0; shafa_code[j]; ++j) {
+                                                                    
                                                                     if (shafa_code[j] == '0') decoder = decoder->left;
                                                                     else decoder = decoder->right;
                                                                     if (decoder && !(decoder->left) && !(decoder->right)) { // PROBLEM: KEEPS GOING TO 6
@@ -372,6 +382,7 @@ _modules_error shafa_decompress (char ** const path) {
 
                                                 }
 
+                                            free_tree(decoder);
 
                                             }
                                             else {

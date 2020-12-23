@@ -28,6 +28,7 @@ typedef struct {
     bool module_c;
     bool module_d;
     bool f_force_rle;
+    bool f_force_freq;
     bool d_shaf;
     bool d_rle;
 } Options;
@@ -93,10 +94,13 @@ static bool parse(const int argc, char * const argv[], Options * const options, 
                             return 0;
                     }
                     break;
-                case 'c': // r -> rle force
-                    if (opt != 'r')
+                case 'c': // r -> rle force    |    f -> freq force
+                    if (opt == 'r')
+                        options->f_force_rle = true;
+                    else if (opt == 'f')
+                        options->f_force_freq = true;
+                    else
                         return false;
-                    options->f_force_rle = true;
                     break;
                 case 'd': // s|r
                     if (opt == 's')
@@ -127,9 +131,10 @@ _modules_error execute_modules(Options options, char ** const ptr_file) // bette
 {
     _modules_error error;
     char * tmp_file;
+    BlocksSize blocks_size = {.sizes = NULL, .length = 0};
     
     if (options.module_f) {
-        error = freq_rle_compress(ptr_file, options.f_force_rle, options.block_size); // Returns true if file was RLE compressed
+        error = freq_rle_compress(ptr_file, options.f_force_rle, options.f_force_freq, options.block_size); // Returns true if file was RLE compressed
 
         if (error) {
             fputs("Module d: Something went wrong while compressing with RLE or creating frequencies' table...\n", stderr);
@@ -195,7 +200,7 @@ _modules_error execute_modules(Options options, char ** const ptr_file) // bette
             }
             else {
 
-                error = shafa_decompress(ptr_file);
+                error = shafa_decompress(ptr_file, &blocks_size);
 
                 if (error) {
                     fputs("Module d: Something went wrong while decompressing with Shannon Fano...\n", stderr);
@@ -205,18 +210,27 @@ _modules_error execute_modules(Options options, char ** const ptr_file) // bette
         }
         
         if (options.d_rle || !options.d_shaf) { // Trigger: NULL | -m d | -m d -d r
-            if (!check_ext(*ptr_file, RLE_EXT)) {
+
+            // if blocks_size.length != 0 then shafa_decmpress was executed so there is no need to check extension
+            if (!blocks_size.length && !check_ext(*ptr_file, RLE_EXT)) { 
                 fprintf(stderr, "Module d: Wrong extension... Should end in %s\n", RLE_EXT);
                 return _OUTSIDE_MODULE;
             }
 
-            error = rle_decompress(ptr_file);
+            error = rle_decompress(ptr_file, &blocks_size);
 
             if (error) {
+
+                if (blocks_size.length)
+                    free(blocks_size.sizes);
+
                 fputs("Module d: Something went wrong while decompressing with RLE...\n", stderr);
                 return error;
             }
         }
+
+        if (blocks_size.length)
+            free(blocks_size.sizes);
     }
     return _SUCCESS;
 }
@@ -224,7 +238,7 @@ _modules_error execute_modules(Options options, char ** const ptr_file) // bette
 
 int main (const int argc, char * const argv[])
 {
-    Options options = {0};
+    Options options = {0}; // Reference C99 Standard 6.7.8.21
     char * file = NULL;
     int error;
 

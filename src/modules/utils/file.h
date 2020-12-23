@@ -1,6 +1,8 @@
 #ifndef UTILS_FILE_H
 #define UTILS_FILE_H
 
+#include <stdio.h>
+
 enum {
     _1KiB   = 1024,
     _64KiB  = 65536,

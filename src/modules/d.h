@@ -7,7 +7,7 @@
 
 
 typedef struct {
-    uint8_t * sizes;
+    uint32_t * sizes;
     long long length;
 } BlocksSize;
 

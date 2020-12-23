@@ -12,9 +12,9 @@
 #include <stdbool.h>
 
 #include "d.h"
-#include "file.h"
-#include "errors.h"
-#include "extensions.h"
+#include "utils/file.h"
+#include "utils/errors.h"
+#include "utils/extensions.h"
 
 #define n_simb 256
 
@@ -166,7 +166,7 @@ typedef struct btree{
 
 _modules_error add_tree(BTree* decoder, char *code, char symbol) 
 {
-    int i = 0;
+    int i;
     for (i = 0; code[i]; ++i) {
         if (*decoder && code[i] == '0') decoder = &(*decoder)->left;
         else if (*decoder && code[i] == '1') decoder = &(*decoder)->right;
@@ -184,103 +184,273 @@ _modules_error add_tree(BTree* decoder, char *code, char symbol)
     return _SUCCESS;
 }
 
-_modules_error create_tree(char *path, int **blocks_sizes, int *size, BTree *decoder) 
+_modules_error create_tree (FILE* f_cod, int * block_sizes, long long index, BTree* decoder)
 {
+    _modules_error error = _SUCCESS;
+    // Initialize root without meaning 
     *decoder = malloc(sizeof(struct btree));
-    if (!(*decoder)) return _LACK_OF_MEMORY;
-    (*decoder)->left = (*decoder)->right = NULL;
-
-    char* name_cod = add_ext(rm_ext(path), ".cod");
-    FILE* f_cod = fopen(name_cod, "rb");
-    if (!f_cod) return _FILE_INACCESSIBLE;
-    
-    char mode;
-    if (fscanf(f_cod, "@%c@%d", &mode, size) != 2) return _FILE_UNRECOGNIZABLE;
-  
-    *blocks_sizes = malloc (sizeof(int)*(*size));
-    if (!(*blocks_sizes)) return _LACK_OF_MEMORY;
    
-    for (int i = 0; i < *size; ++i) {
-        int block_size;
-        if (fscanf(f_cod, "@%d", &block_size) == 1) 
-            *blocks_sizes[i] = block_size;
-        else return _FILE_UNRECOGNIZABLE;
-        char* code = malloc(33151);
-        if (!code) return _LACK_OF_MEMORY;
-        fscanf(f_cod,"@%[^@]s", code); // FIX
+    if (*decoder) {
+        
+        (*decoder)->left = (*decoder)->right = NULL;
+       
+        int crrb_size; 
+        // Reads the current block size
+        if (fscanf(f_cod, "@%d", &crrb_size) == 1) {
+           
+            // Saves it to the array
+            block_sizes[index] = crrb_size; 
+            // Allocates memory to a block of code from .cod file
+            char* code = malloc(33152);            
+            if (code) {
+                // Places it in the allocated string
+                if (fscanf(f_cod,"@%33151[^@]s", code) == 1) {   
+                         
+                    for (int k = 0, l = 0; code[l];) {
+                        // When it finds a ';' it is no longer on the same symbol. This updates it.
+                        while (code[l] == ';') {
+                            k++;
+                            l++;
+                        }
+                        // Allocates memory for the sf code of a symbol
+                        char* sf = malloc(257);
+                        if (sf) {           
+                            int j;
+                            for (j = 0; code[l] && (code[l] != ';'); ++j, ++l) 
+                                sf[j] = code[l];
+                            sf[j] = '\0';           
+                            if (j != 0) {
+                                // Adds the code to the tree
+                                error = add_tree(decoder, sf, k);
+                                if (error != _SUCCESS) break;
+                              
+                            }   
+                            free(sf);        
+                        }
+                        else {    
 
-        for (int k = 0, l = 0; code[l];) {
-            while (code[l] == ';') {
-                k++;
-                l++;
+                            error = _LACK_OF_MEMORY;
+
+                        }
+                      
+                    }
+                }
+                else {
+                    
+                    error = _FILE_STREAM_FAILED; 
+                     
+                }
+                free(code);
             }
-            char* sf = malloc(33);
-            if (!sf) return _LACK_OF_MEMORY;
-            int j;
-            for (j = 0; code[l] && code[l] != ';'; ++j)  
-                sf[j] = code[l++];
-            sf[j] = '\0';
-            _modules_error error;
-            if (j!=0) {
-                error = add_tree(decoder, sf, k);
-                if (error != _SUCCESS) return error;
-            }
+            else {    
+
+                error = _LACK_OF_MEMORY;
+              
+            }          
+              
         }
+        else  {    
+
+            error = _FILE_STREAM_FAILED;
+
+        }
+        
+        free(*decoder);
     }
+    else {
+
+        error = _LACK_OF_MEMORY;
+
+    }
+
     
-    return _SUCCESS;
+    return error;
 }
 
-_modules_error shafa_decompress(char ** const path) 
-{
-    // Creates the tree 
-    int* blocks_sizes, size;
-    BTree decoder;
-    _modules_error error = create_tree(*path, &blocks_sizes, &size, &decoder);
-    if (error != _SUCCESS) return error;
-    BTree root = decoder;
+_modules_error shafa_decompress (char ** const path) {
 
-    // Opens the shafa file and decompressed file
+    _modules_error error = _SUCCESS;
+
     FILE* f_shafa = fopen(*path, "rb");
-    if (!f_shafa) return _FILE_INACCESSIBLE;
+    if (f_shafa) {
 
-    // Reads header of shafa file
-    int n_blocks;
-    char mode;
-    if (fscanf(f_shafa, "@%d", &n_blocks) != 1) return _FILE_UNRECOGNIZABLE;
+        char* path_cod = rm_ext(*path);
+        if (path_cod) {
 
-    // Opens file to write in
-    char* path_wrt = rm_ext(*path);
-    if (!path_wrt) return _LACK_OF_MEMORY;
-    FILE* f_wrt = fopen(path_wrt, "wb");
-    if (!f_wrt) return _FILE_INACCESSIBLE;
+            path_cod = add_ext(path_cod, ".cod");
+            if (path_cod) {
 
-    int l = 0;
-    for (int i = 0; i < n_blocks; ++i) {
-        int sf_bsize;
-        if (fscanf(f_shafa, "@%d", &sf_bsize) != 1) return _FILE_UNRECOGNIZABLE;
-        char* shafa_code = malloc(sf_bsize + 1);
-        if (!shafa_code) return _LACK_OF_MEMORY;
-        char* decomp = malloc(sizeof(char)*blocks_sizes[i]);
-        if (!decomp) return _LACK_OF_MEMORY;
-        
-        if (fscanf(f_shafa, "@%[^@]s", shafa_code) == 0) return _LACK_OF_MEMORY;
-        else {
-            for (int j = 0; shafa_code[j]; j++) {
-                if (shafa_code[j] == '0') decoder = decoder->left;
-                else decoder = decoder->right;
-                if (decoder && !(decoder->left) && !(decoder->right)) {
-                    decomp[l++] = decoder->symbol;
-                    decoder = root;
+                FILE* f_cod = fopen(path_cod, "rb");
+                if (f_cod) {
+
+                    char* path_wrt = rm_ext(*path);
+                    if (path_wrt) {
+
+                        FILE* f_wrt = fopen(path_wrt, "wb");
+                        if (f_wrt) {
+
+                            long long n_blocks;
+                            if (fscanf(f_shafa, "@%lld", &n_blocks) == 1) {
+
+                                char mode;
+                                if (fscanf(f_cod, "@%c@%lld", &mode, &n_blocks)) {
+                                    int* block_sizes = malloc(sizeof(int)*n_blocks);
+
+                                    if ((mode == 'N') || (mode == 'R')) {
+                                    
+                                        int l = 0;
+                                        for (long long i = 0; i < n_blocks; ++i) {
+
+                                            BTree decoder;
+                                            error = create_tree(f_cod, block_sizes, i, &decoder);
+                
+                                            if (error == _SUCCESS) {
+                                                
+                                                BTree root = decoder;
+                                                int sf_bsize;
+                                                if (fscanf(f_shafa, "@%d@", &sf_bsize) == 1) {
+
+                                                    char* shafa_code = malloc(sf_bsize+1);
+                                                    if (shafa_code) {
+
+                                                        char* decomp = malloc(992); // substituir
+                                                        if (decomp) {
+
+                                                            if (fread(shafa_code, 1, sf_bsize, f_shafa) == sf_bsize) {
+
+                                                                for (int j = 0; shafa_code[j]; j++) {
+
+                                                                    if (shafa_code[j] == '0') decoder = decoder->left;
+                                                                    else decoder = decoder->right;
+                                                                    if (decoder && !(decoder->left) && !(decoder->right)) { // PROBLEM: KEEPS GOING TO 6
+                                                        
+                                                                        decomp[l++] = decoder->symbol;
+                                                                        decoder = root;
+
+                                                                    }
+
+                                                                }
+                                                                decomp[++l] = '\0';
+                                                                --l;
+                                                                if (fwrite(decomp, 1, l, f_wrt) != l) {
+
+                                                                    error = _FILE_STREAM_FAILED;
+                                                                    i = n_blocks;
+
+                                                                }
+
+                                                            }
+                                                            else {
+
+                                                                error = _FILE_STREAM_FAILED;
+                                                                i = n_blocks;
+
+                                                            }
+
+                                                            free(decomp);
+                                                        }
+                                                        else {
+
+                                                            error = _LACK_OF_MEMORY;
+                                                            i = n_blocks;
+
+                                                        }
+
+                                                        free(shafa_code);
+                                                    }
+                                                    else {
+
+                                                        error = _LACK_OF_MEMORY;
+                                                        i = n_blocks;
+
+                                                    }
+
+                                                }
+                                                else {
+
+                                                    error = _FILE_STREAM_FAILED;
+
+                                                }
+
+
+                                            }
+                                            else {
+
+                                                i = n_blocks;
+
+                                            }
+
+                                        }
+
+                                    }
+                                    else {
+
+                                        error = _FILE_UNRECOGNIZABLE;
+
+                                    }
+                                    
+                                }
+                                else {
+
+                                    error = _FILE_STREAM_FAILED;
+
+                                }
+
+                            }
+                            else {
+                                
+                                error = _FILE_STREAM_FAILED;
+
+                            }
+                            fclose(f_wrt);
+
+                        }
+                        else {
+
+                            error = _FILE_UNRECOGNIZABLE;
+
+                        }
+                        free(path_wrt);
+
+                    }
+                    else {
+
+                        error = _LACK_OF_MEMORY;
+
+                    }
+                    fclose(f_cod);
+
                 }
+                else {
+                
+                    error = _FILE_UNRECOGNIZABLE;
+
+                }
+
             }
+            else {
+
+                error = _LACK_OF_MEMORY;
+
+            }
+            free(path_cod);
+
         }
-        decomp[++l] = '\0';
-        int res = fwrite(decomp, 1, ++l, f_wrt);
-        if (res != l) return _FILE_STREAM_FAILED;
-        free(decomp);
+        else {
+
+            error = _LACK_OF_MEMORY;
+
+        }
+
+        fclose(f_shafa);
+
     }
-    
-    return _SUCCESS;
+    else {
+        
+        error = _FILE_UNRECOGNIZABLE;
+
+    }
+
+    return error;
 }
 

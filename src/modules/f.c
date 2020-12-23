@@ -77,8 +77,8 @@ void make_freq_rle(unsigned char* block, int* freq)
     }
 }
 
-
-_modules_error freq_rle_compress(char** const path, const bool force_rle, const int block_size)
+//NOTA para Mosca: force_freq será para forçar a criar freq para o f_original mesmo que tb façamos para o f_rle(Depois eliminar isto)
+_modules_error freq_rle_compress(char** const path, const bool force_rle, const bool force_freq, const int block_size)
 {
     //Reading and loading file into the buffer
     FILE* f = fopen(*path, "rb");
@@ -89,16 +89,13 @@ _modules_error freq_rle_compress(char** const path, const bool force_rle, const 
     long long n_blocks = fsize(f, *path, &the_block_size, &size_of_last_block);
 
     int size_f = (n_blocks-1) * (int)the_block_size + (int)size_of_last_block; //Saves the size of the file
-    //int size_f = ftell(f); 
-    rewind(f); //Goes to the begining of the file
-
     if(size_f < 1024)
     {
         fclose(f);
         return _FILE_TOO_SMALL;  //If the file is too small
     }
 
-    u_int8_t * buffer = malloc(size_f); //Allocates memory for all the characters in the file
+    u_int8_t* buffer = malloc(size_f); //Allocates memory for all the characters in the file
     if(!buffer) 
     {
         fclose(f);
@@ -115,9 +112,14 @@ _modules_error freq_rle_compress(char** const path, const bool force_rle, const 
     if(!f_rle) return _FILE_INACCESSIBLE;
 
     FILE* f_freq = fopen("new.freq", "wb");
-    if(!f_freq) return _FILE_INACCESSIBLE;
+    if(!f_freq) 
+    {
+        free(buffer); //NOTA Mosca: penso estar certo mas confirma (dps apagar isto)
+        fclose(f_rle);
+        return _FILE_INACCESSIBLE;
+    }
 
-    u_int8_t * block;
+    u_int8_t* block;
 
     // divides and compresses the buffer into blocks and writes it into the rle file
     int compresd = (int)the_block_size, size_block_rle = 0, size_block_freq = 0;
@@ -130,14 +132,15 @@ _modules_error freq_rle_compress(char** const path, const bool force_rle, const 
         block = malloc(compresd * 3); //creates string with enough memory to compress the block
         if(!block) 
         {
+            free(buffer); //NOTA Mosca: penso estar certo mas confirma (dps apagar isto)
             fclose(f_freq);
             fclose(f_rle);
             return _LACK_OF_MEMORY;
         }
-        size_block_rle = block_compression(buffer+s, block, compresd, size_f); 
+        size_block_rle = block_compression(buffer+s, block, compresd, size_f);
         if(block_num == 0 )
         {
-            double compression_ratio = (double)(compresd - size_block_rle)/compresd; //Calculates the compression ratio
+            float compression_ratio = (double)(compresd - size_block_rle)/compresd; //Calculates the compression ratio
             if(compression_ratio < 0.05 && !force_rle) compress_rle = false;
             int* freq = malloc(sizeof(int)*256); //Allocates memory for all the symbol's frequencies
             if(compress_rle) //If there was compression
@@ -161,7 +164,6 @@ _modules_error freq_rle_compress(char** const path, const bool force_rle, const 
                         fprintf(f_freq, ";");
                     }
                 }
-                free(block); //Frees an allocated block
             }
             else //freq do original(FAZER DIREITO)
             {
@@ -176,13 +178,14 @@ _modules_error freq_rle_compress(char** const path, const bool force_rle, const 
                         fprintf(f_freq, ";");
                     }
                 }
-                free(block); //Frees an allocated block
             }
+            free(block); //Frees an allocated block
             fprintf(f_freq, "@0@");
         }
     s+=compresd;
     }
-    
+    free(buffer); //NOTA para Mosca: este free pode não ser aqui!(depois tirar isto)
+
     fclose(f_freq);
     fclose(f_rle);
 

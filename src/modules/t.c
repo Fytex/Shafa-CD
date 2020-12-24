@@ -149,7 +149,8 @@ _modules_error get_shafa_codes(const char * path)
     char * block_input;
     char mode;
     long long num_blocks;
-    int block_size, freq_notnull;
+    unsigned long block_size;
+    int freq_notnull;
     int error = _SUCCESS;
     int positions[NUM_SYMBOLS];
     uint32_t frequencies[NUM_SYMBOLS] ;
@@ -164,9 +165,9 @@ _modules_error get_shafa_codes(const char * path)
 
         if (fd_freq){
 
-            if (fscanf(fd_freq, "@%c%lld", &mode, &num_blocks) == 2){
+            if (fscanf(fd_freq, "@%c@%lld", &mode, &num_blocks) == 2){
 
-                if (mode != 'R' || mode != 'N')
+                if (mode != 'R' && mode != 'N')
                     return _FILE_UNRECOGNIZABLE;
                 
 
@@ -189,10 +190,10 @@ _modules_error get_shafa_codes(const char * path)
                                 memset(frequencies, 0, NUM_SYMBOLS*4);
                                 for (int j = 0; j < NUM_SYMBOLS; ++j)positions[j] = j;
 
-                                fscanf(fd_freq, "@%d", &block_size);
+                                fscanf(fd_freq, "@%lu", &block_size);
                                 block_input = malloc (9 * 256 + 255);
 
-                                fscanf (fd_freq, "@%[^@]s", block_input);
+                                fscanf (fd_freq, "@%[^@]", block_input);
                                 
                                 read_Block(block_input, frequencies);
                                 insert_Sort(frequencies, positions, 0, 255);

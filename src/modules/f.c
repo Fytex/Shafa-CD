@@ -42,41 +42,21 @@ int block_compression(u_int8_t buffer[], u_int8_t block[], const int block_size,
     return size_block_rle;
 }
 
-//Function that turns block of content in an array of frequencies(each index matches a symbol, from 0 to 255)
-void make_freq_txt(unsigned char* buffer, int* freq)
-{
-    int i;
-    for(i = 0; i < 256; i++) freq[i] = 0; //Puts all the elements of freq as 0
-    for(i = 0; buffer[i]; i++) //Goes through the buffer
-    {
-        int symbol = buffer[i]; //Saves symbol
-        ++freq[symbol]; //Increments frequency of a symbol
-            
-    }
-}
 
 //Function that turns block of compressed content(or not) in an array of frequencies(each index matches a symbol, from 0 to 255)
-void make_freq_rle(unsigned char* block, int* freq, int size_block)
+void make_freq(unsigned char* block, int* freq, int size_block)
 {
     int i;
     for(i = 0; i < 256; i++) freq[i] = 0; //Puts all the elements of freq as 0
     for(i = 0; i < size_block; i++)  //Goes through the block
     {
         int symbol;
-            /*if(block[i] == NULL) //If it's a compressed string of equal symbols
-            {
-                symbol = block[++i]; //Saves symbol
-                freq[symbol] += block[++i]; //Increments frequency of a symbol
-
-            }
-            */
         symbol = block[i]; //Saves symbol
         ++freq[symbol]; //Increments frequency of a symbol
     
     }
 }
 
-//NOTA para Mosca: force_freq será para forçar a criar freq para o f_original mesmo que tb façamos para o f_rle(Depois eliminar isto)
 _modules_error freq_rle_compress(char** const path, const bool force_rle, const bool force_freq, const int block_size)
 {
     //Reading and loading file into the buffer
@@ -110,14 +90,14 @@ _modules_error freq_rle_compress(char** const path, const bool force_rle, const 
     FILE* f_rle = fopen("new.rle", "wb");
     if(!f_rle) return _FILE_INACCESSIBLE;
 
-    FILE* f_freq = fopen("new.freq", "wb");
-    if(!f_freq) 
+    FILE* f_freq; // = fopen("new.freq", "wb");
+    /*if(!f_freq) 
     {
         free(buffer); //NOTA Mosca: penso estar certo mas confirma (dps apagar isto)
         fclose(f_rle);
         return _FILE_INACCESSIBLE;
     }
-
+    */
     u_int8_t* block;
 
     // divides and compresses the buffer into blocks and writes it into the rle file
@@ -132,7 +112,7 @@ _modules_error freq_rle_compress(char** const path, const bool force_rle, const 
         if(!block) 
         {
             free(buffer); //NOTA Mosca: penso estar certo mas confirma (dps apagar isto)
-            fclose(f_freq);
+            //fclose(f_freq);
             fclose(f_rle);
             return _LACK_OF_MEMORY;
         }
@@ -141,6 +121,14 @@ _modules_error freq_rle_compress(char** const path, const bool force_rle, const 
         {
             float compression_ratio = (double)(compresd - size_block_rle)/compresd; //Calculates the compression ratio
             if(compression_ratio < 0.05 && !force_rle) compress_rle = false;
+            f_freq = fopen("new.freq", "wb");
+            if(!f_freq) 
+            {
+                free(buffer); //NOTA Mosca: penso estar certo mas confirma (dps apagar isto)
+                free(block);
+                fclose(f_rle);
+                return _FILE_INACCESSIBLE;
+            }
             if(compress_rle) //If there was compression
             {
                 fprintf(f_freq,"@R@%lld", n_blocks); //The start of the freq file: @R@n_blocks@size_block_freq@
@@ -148,7 +136,7 @@ _modules_error freq_rle_compress(char** const path, const bool force_rle, const 
             }
             else //freq do original(FAZER DIREITO)
             {
-                fprintf(f_freq,"@R@%lld@%d@", n_blocks, size_block_freq); //The start of the freq file: @R@n_blocks@size_block_freq@
+                fprintf(f_freq,"@N@%lld", n_blocks); //The start of the freq file: @R@n_blocks@size_block_freq@
             }
             
             
@@ -156,15 +144,10 @@ _modules_error freq_rle_compress(char** const path, const bool force_rle, const 
         int* freq = malloc(sizeof(int)*256); //Allocates memory for all the symbol's frequencies
         if(compress_rle) //If there was compression
         {
-            /*if(block_num == 0) 
-            {
-                FILE* f_rle = fopen("new.rle", "wb");
-                if(!f_rle) return _FILE_INACCESSIBLE;                    
-            } */ 
             int res = fwrite(block, 1, size_block_rle, f_rle);
             //Writes the first block of frquencies in the freq file
             
-            make_freq_rle(block, freq, size_block_rle); //Generates an array of frequencies of the block
+            make_freq(block, freq, size_block_rle); //Generates an array of frequencies of the block
             int i, j;
             fprintf(f_freq, "@%d@", size_block_rle);
             for(i = 0; i < 256;) //Goes through the block of frequencies
@@ -179,22 +162,31 @@ _modules_error freq_rle_compress(char** const path, const bool force_rle, const 
                 }
                 i = j;
             }
+            if(block_num == n_blocks -1) {
+                fprintf(f_freq, "@0");
+                fclose(f_freq);
+            } 
             
         }
         
         else //freq do original(FAZER DIREITO)
         {
-            make_freq_txt(block, freq); //Generates an array of frequencies of the block
-            fprintf(f_freq,"@R@%lld@%d@", n_blocks, size_block_freq); //The start of the freq file: @R@n_blocks@size_block_freq@
+            make_freq(buffer+s, freq, compresd); //Generates an array of frequencies of the block
             int i, j;
-            for(i = 0; freq[i]; i++) //Goes through the block of frequencies
+            fprintf(f_freq, "@%d@", compresd);
+            for(i = 0; i < 256;) //Goes through the block of frequencies
             {
                 fprintf(f_freq,"%d", freq[i]); //writes the frequency of each value on the freq file
-                for(j = i; freq[i] == freq[j]; j++) //If the frequency of consecutive values is the same writes ';' after the fisrt value
+                for(j = i; freq[i] == freq[j] && j<256; j++) //If the frequency of consecutive values is the same writes ';' after the fisrt value
                 {
-                    fprintf(f_freq, ";");
+                    if(j!=255) fprintf(f_freq, ";");
                 }
+                i = j;
             }
+            if(block_num == n_blocks -1) {
+                fprintf(f_freq, "@0");
+                fclose(f_freq);
+            } 
         }
         
         free(block); //Frees an allocated block
@@ -202,8 +194,8 @@ _modules_error freq_rle_compress(char** const path, const bool force_rle, const 
     s+=compresd;
     }
     free(buffer); //NOTA para Mosca: este free pode não ser aqui!(depois tirar isto)
-    fprintf(f_freq, "@0");
-    fclose(f_freq);
+    //fprintf(f_freq, "@0");
+    //fclose(f_freq);
     fclose(f_rle);
 
     return _SUCCESS;

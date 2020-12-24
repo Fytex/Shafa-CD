@@ -7,7 +7,7 @@
 
 
 typedef struct {
-    uint32_t * sizes;
+    unsigned long * sizes;
     long long length;
 } BlocksSize;
 
@@ -18,7 +18,7 @@ typedef struct {
  @param blocks_size Pointer to blocks size
  @returns Error status
 */
-_modules_error rle_decompress(char ** path, BlocksSize * blocks_size);
+_modules_error rle_decompress(char ** path, const BlocksSize * blocks_size);
 
 
 /**
@@ -27,7 +27,7 @@ _modules_error rle_decompress(char ** path, BlocksSize * blocks_size);
  @param blocks_size Pointer to blocks size
  @returns Error status
 */
-_modules_error shafa_decompress(char ** path, const BlocksSize * blocks_size);
+_modules_error shafa_decompress(char ** path, BlocksSize * blocks_size);
 
 
 #endif //MODULE_D_H

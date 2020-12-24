@@ -17,32 +17,36 @@
 #define NUM_SYMBOLS 256
 #define MIN(a,b) ((a) < (b) ? a : b)
 
-
-void read_Block (char * codes_input, uint32_t frequencies[NUM_SYMBOLS]) 
+void readBlock (char * codes_input, uint32_t frequencies[NUM_SYMBOLS]) 
 {
     char * ptr = codes_input;
     uint32_t auxfreq;
-    int nread = 0;
+    int nread=0;
 
     for (int i = 0; i < NUM_SYMBOLS; ++i){
-        if (sscanf(ptr, "%u[^;]", &frequencies[i]) == 1 ){
+        if ( sscanf(ptr, "%u[^;]",&frequencies[i]) == 1 ){
                      
             auxfreq = frequencies[i];
              
             while (auxfreq != 0){  
                 auxfreq /= 10;  
-                ++nread;  
+                nread++;  
             }  
-            
             if (nread == 0) ++nread;
 
             ptr += nread + 1; 
             nread = 0;
-        }
-        else           
+        }       
+        else if(i >= 1){
+            frequencies[i] = frequencies[i-1];
             ++ptr;
+        }
+        else{
+            ++ptr;
+        }
     }
 }
+
 void insert_Sort (uint32_t frequencies[], int positions[], int left, int right)
 {
     uint32_t tmpFreq;

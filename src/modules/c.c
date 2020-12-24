@@ -239,38 +239,38 @@ _modules_error shafa_compress(char ** const path)
 
                                 if (fprintf(fd_shafa, "@%lld", num_blocks) >= 2) {
 
-                                    for (long long i = 0; i < num_blocks; ++i) {
+                                    for (long long i = 0; i < num_blocks && !error; ++i) {
 
-                                        if (fscanf(fd_codes,"@%lu@%33151[^@]", &block_size, block_codes) != 2) {
+                                        if (fscanf(fd_codes,"@%lu@%33151[^@]", &block_size, block_codes) == 2) {
+                                            block_input = malloc(block_size);
+
+                                            if (block_input) {
+                                                if (fread(block_input, sizeof(uint8_t), block_size, fd_file) == block_size) {
+                                                    error = compress_to_file(fd_file, fd_shafa, block_codes, block_input, block_size, &block_output, &new_block_size); // use semaphore (mutex) [only when multithreading]
+                                                    
+                                                    if (!error) {
+                                                        if (fprintf(fd_shafa, "@%lu", new_block_size) >= 2) {
+
+                                                            if (fwrite(block_output, sizeof(uint8_t), new_block_size, fd_shafa) != new_block_size)
+                                                                error = _FILE_STREAM_FAILED;
+
+                                                        }
+
+                                                        free(block_output);
+                                                    }
+                                                    else
+                                                        error = _LACK_OF_MEMORY;
+                                                }
+                                                else
+                                                    error = _FILE_STREAM_FAILED;
+                                                
+                                                free(block_input);
+                                            }
+                                            else
+                                                error = _LACK_OF_MEMORY;
+                                        }
+                                        else
                                             error = _FILE_STREAM_FAILED;
-                                            break;
-                                        }
-
-                                        block_input = malloc(block_size);
-
-                                        if (!block_input) {
-                                            error = _LACK_OF_MEMORY;
-                                            break;
-                                        }
-                                        
-                                        if (fread(block_input, sizeof(uint8_t), block_size, fd_file) != block_size) {
-                                            free(block_input);
-                                            error = _FILE_STREAM_FAILED;
-                                            break;
-                                        }
-
-                                        error = compress_to_file(fd_file, fd_shafa, block_codes, block_input, block_size, &block_output, &new_block_size); // use semaphore (mutex) [only when multithreading]
-                                        
-                                        free(block_input);
-
-                                        if (error) {
-                                            free(block_output);
-                                            break;
-                                        }
-
-                                        fwrite(block_output, sizeof(uint8_t), new_block_size, fd_shafa);
-                                        free(block_output);
-                        
                                     }
                                 }
                                 else

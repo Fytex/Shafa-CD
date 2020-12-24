@@ -17,14 +17,51 @@ typedef struct {
 } CodesIndex;
 
 
-static int compress_to_file(FILE * const fd_file, FILE * const fd_shafa, const char * block_codes, const uint8_t * const block_input, const int block_size)
+static uint8_t * binary_coding(CodesIndex (* const table)[NUM_SYMBOLS], const uint8_t * restrict block_input, const unsigned long block_size, unsigned long * const new_block_size)
 {
-    CodesIndex * table = calloc(NUM_OFFSETS * NUM_SYMBOLS, CodesIndex));
+    uint8_t * output;
+    CodesIndex * symbol;
+    int offset = 0, num_bytes_code;
+    uint8_t * code;
+
+    uint8_t * const block_output = calloc(block_size, sizeof(uint8_t));
+
+    if (!block_output)
+        return NULL;
+
+    output = block_output;
+    
+    for (unsigned long idx = 0; idx < block_size; ++idx) {
+        symbol = &table[offset][*block_input++];
+
+        num_bytes_code = symbol->index;
+        code = symbol->code;
+
+        for (int i = 0; i < num_bytes_code; ++i)
+            *output++ |= *code++;
+        
+        *output |= *code;
+
+        offset = symbol->next;
+    }
+
+    *new_block_size = output - block_output + 1;
+
+    return block_output;
+}
+
+
+static int compress_to_file(FILE * const fd_file, FILE * const fd_shafa, const char * block_codes, const uint8_t * const block_input, const unsigned long block_size, uint8_t ** const block_output, unsigned long * const new_block_size)
+{
     CodesIndex header_symbol_row, *symbol_row;
     char cur_char, next_char;
     int bit_idx, code_idx;
     uint8_t byte, next_byte_prefix = 0, mask;
 
+    CodesIndex (* table)[NUM_SYMBOLS] = calloc(1, sizeof(CodesIndex[NUM_OFFSETS][NUM_SYMBOLS]));
+
+    if (!table)
+        return _LACK_OF_MEMORY;
 
     /*
     /
@@ -69,15 +106,15 @@ static int compress_to_file(FILE * const fd_file, FILE * const fd_shafa, const c
                 next_char = *block_codes++;
 
             }
-            table[syb_idx].code[code_idx] = byte;
+            table[0][syb_idx].code[code_idx] = byte;
         }
 
         cur_char = next_char;
         next_char = *block_codes++;
 
         if (code_idx > 0) {
-            table[syb_idx].next = (bit_idx != 8) ? (bit_idx + 1) * NUM_SYMBOLS : 0;
-            table[syb_idx].index = code_idx - (bit_idx < 8 ? 1 : 0);
+            table[0][syb_idx].next = (bit_idx != 8) ? (bit_idx + 1) : 0;
+            table[0][syb_idx].index = code_idx - (bit_idx < 8 ? 1 : 0);
         }
 
     }
@@ -97,16 +134,16 @@ static int compress_to_file(FILE * const fd_file, FILE * const fd_shafa, const c
 
     for (int idx = 0, new_index; idx < NUM_SYMBOLS; ++idx) {
 
-        header_symbol_row = table[idx];
+        header_symbol_row = table[0][idx];
 
         for (int offset = 1, bit_offset; offset < NUM_OFFSETS; ++offset) {
 
-            symbol_row = &table[offset * NUM_SYMBOLS + idx];
+            symbol_row = &table[offset][idx];
 
-            bit_offset = header_symbol_row.next / NUM_SYMBOLS + offset;
+            bit_offset = header_symbol_row.next + offset;
             new_index = header_symbol_row.index + (bit_offset < 8 ? 0: 1);
             symbol_row->index = new_index;
-            symbol_row->next = ((bit_offset < 8) ? bit_offset : bit_offset - 8) * NUM_SYMBOLS;
+            symbol_row->next = (bit_offset < 8) ? bit_offset : bit_offset - 8;
 
             next_byte_prefix = 0;
             for (int code_idx = 0; code_idx < new_index; ++code_idx) {
@@ -119,7 +156,7 @@ static int compress_to_file(FILE * const fd_file, FILE * const fd_shafa, const c
 
             }
 
-            // This will only execute if next != 8*N. where N = 256 symbols. Because this iteration is unnecessary
+            // This will only execute if next != 0 (which is the same as bit_offset != 8) Because this iteration is unnecessary
             if (bit_offset != 8) {
                 byte = header_symbol_row.code[new_index];
                 symbol_row->code[new_index] = (byte >> offset) | (next_byte_prefix << (8 - offset));
@@ -130,21 +167,26 @@ static int compress_to_file(FILE * const fd_file, FILE * const fd_shafa, const c
     
     /*
     /
-    /    Write to .shaf
+    /    Write compressed code
     /
     */
 
-   for (int idx = 0; idx < block_size; ++idx) {
-
-        byte = *block_input;
-        symbol_row = table + byte;
-
     
+    *block_output = binary_coding(table, block_input, block_size, new_block_size);
+
+    if (!*block_output)
+        return _LACK_OF_MEMORY;
+
+    /* Print output to stdio
+
+    printf("%lu\n", *new_block_size);
+    for (unsigned long i = 0; i < *new_block_size; i++)
+        printf("%02X", *block_output[i]);
+    puts("");
     
+    */
 
-
-   }
-
+    return _SUCCESS;
 }
 
 
@@ -154,11 +196,12 @@ _modules_error shafa_compress(char ** const path)
     char * path_file = *path;
     char * path_codes;
     char * path_shafa;
-    char * block_codes, * block_input;
+    char * block_codes;
     char mode;
     long long num_blocks;
-    int block_size;
+    unsigned long block_size, new_block_size;
     int error = _SUCCESS;
+    uint8_t * block_input, * block_output = NULL;
 
     
     
@@ -198,7 +241,7 @@ _modules_error shafa_compress(char ** const path)
 
                                     for (long long i = 0; i < num_blocks; ++i) {
 
-                                        if (fscanf(fd_codes,"@%d@%33151[^@]s", &block_size, block_codes) != 2) {
+                                        if (fscanf(fd_codes,"@%lu@%33151[^@]", &block_size, block_codes) != 2) {
                                             error = _FILE_STREAM_FAILED;
                                             break;
                                         }
@@ -211,13 +254,23 @@ _modules_error shafa_compress(char ** const path)
                                         }
                                         
                                         if (fread(block_input, sizeof(uint8_t), block_size, fd_file) != block_size) {
+                                            free(block_input);
                                             error = _FILE_STREAM_FAILED;
                                             break;
                                         }
 
-                                        // A função compress_to_file vai criar a tabela através da string dada e vai escrever no ficheiro
-                                        compress_to_file(fd_file, fd_shafa, block_codes, block_input, block_size); // use semaphore (mutex) [only when multithreading]
+                                        error = compress_to_file(fd_file, fd_shafa, block_codes, block_input, block_size, &block_output, &new_block_size); // use semaphore (mutex) [only when multithreading]
+                                        
+                                        free(block_input);
 
+                                        if (error) {
+                                            free(block_output);
+                                            break;
+                                        }
+
+                                        fwrite(block_output, sizeof(uint8_t), new_block_size, fd_shafa);
+                                        free(block_output);
+                        
                                     }
                                 }
                                 else
@@ -225,7 +278,6 @@ _modules_error shafa_compress(char ** const path)
                             
                             free(block_codes);
                            }
-
 
                             fclose(fd_shafa);
                             free(path_file);
@@ -235,7 +287,6 @@ _modules_error shafa_compress(char ** const path)
                             free(path_shafa);
                             error = _FILE_INACCESSIBLE;
                         }
-
                     }
                     else 
                         error = _LACK_OF_MEMORY;
@@ -243,8 +294,7 @@ _modules_error shafa_compress(char ** const path)
                     fclose(fd_file);
                 }
                 else
-                    error = _FILE_INACCESSIBLE;
-                
+                    error = _FILE_INACCESSIBLE;    
             }
             else
                 error = _FILE_UNRECOGNIZABLE;
@@ -260,9 +310,4 @@ _modules_error shafa_compress(char ** const path)
         error = _LACK_OF_MEMORY;
 
     return error;
-}
-
-int main (){
-
-    shafa_compress("aaa.txt");
 }

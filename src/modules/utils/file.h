@@ -19,6 +19,6 @@ enum {
  @param size_of_last_block Pointer to the size of the last block
  @returns Number of blocks which have `*the_block_size` bytes
 */
-long long fsize(FILE *fp_in, unsigned char *filename, unsigned long *the_block_size, long *size_of_last_block);
+long long fsize(FILE *fp_in, char *filename, unsigned long *the_block_size, long *size_of_last_block);
 
 #endif //UTILS_FILE_H

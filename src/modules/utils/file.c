@@ -1,3 +1,4 @@
+#include <stdio.h>
 #include <stdlib.h>
 
 /*
@@ -48,7 +49,7 @@ This code is open source and free to use as long as the original author is ident
 #define FSIZE_ERROR_IN_FILE -3                  // Error: Opening or reading file
 #define FSIZE_ERROR_IN_FTELL -1L                // Error: When using ftell()
 
-long long fsize(FILE *fp_in, unsigned char *filename, unsigned long *the_block_size, long *size_of_last_block)
+long long fsize(FILE *fp_in, char *filename, unsigned long *the_block_size, long *size_of_last_block)
 {
     unsigned long long total;
     long long n_blocks;

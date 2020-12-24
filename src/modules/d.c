@@ -2,7 +2,7 @@
  *
  *  Author(s): Alexandre Martins, Beatriz Rodrigues
  *  Created Date: 3 Dec 2020
- *  Updated Date: 23 Dec 2020
+ *  Updated Date: 24 Dec 2020
  *
  **************************************************/
 
@@ -17,10 +17,6 @@
 #include "utils/extensions.h"
 
 #define n_simb 256
-
-/*
-Write details about functions in here
-*/
 
 
 char* load_rle (FILE* f_rle, unsigned long size_of_block, _modules_error* error) 
@@ -47,7 +43,9 @@ char* load_rle (FILE* f_rle, unsigned long size_of_block, _modules_error* error)
     return buffer;
 }
 
-char* decompress_string (char* buffer, unsigned long block_size, long long* size_string, _modules_error* error) 
+
+
+char* rle_block_decompressor (char* buffer, unsigned long block_size, long long* size_string, _modules_error* error) 
 {
     // Assumption of the smallest size possible for the decompressed file
     int orig_size;
@@ -146,7 +144,7 @@ _modules_error rle_decompress (char ** const path, const BlocksSize* blocks_size
                             if (error == _SUCCESS) {
                                 // Decompressing the RLE block
                                 long long size_sequence;
-                                char* sequence = decompress_string(buffer, blocks_size->sizes[i], &size_sequence, &error);
+                                char* sequence = rle_block_decompressor(buffer, blocks_size->sizes[i], &size_sequence, &error);
                                 if (error == _SUCCESS) {
                                     // Writing the decompressed block in TXT file
                                     if (fwrite(sequence, 1, size_sequence, f_txt) != size_sequence) {
@@ -205,23 +203,24 @@ _modules_error rle_decompress (char ** const path, const BlocksSize* blocks_size
 
 
 
-/**
-\brief struct of a btree to save the symbols codes
-*/
 typedef struct btree{
     char symbol;
     struct btree *left,*right;
 } *BTree;
 
-void free_tree(BTree a) {
 
-    if (a) {
-        free_tree(a->right);
-        free_tree(a->left);
-        free(a);
+
+
+void free_tree(BTree tree) {
+
+    if (tree) {
+        free_tree(tree->right);
+        free_tree(tree->left);
+        free(tree);
     }
 
 }
+
 
 _modules_error add_tree(BTree* decoder, char *code, char symbol) 
 {
@@ -315,6 +314,38 @@ _modules_error create_tree (FILE* f_cod, unsigned long* block_sizes, long long i
     return error;
 }
 
+
+char* shafa_block_decompressor (char* shafa, unsigned long shafa_size, unsigned long* blocks_size, long long index, BTree decoder) {
+    
+    char* decomp = malloc(blocks_size[index]);
+    if (!decomp) return NULL;
+    BTree root = decoder;
+    uint8_t mask = 128; // 1000 0000 
+    long long l = 0;
+    int bit;
+    for (int i = 0; i < shafa_size;) {
+        
+        bit = mask & shafa[i];
+        if (!bit) decoder = decoder->left;
+        else decoder = decoder->right;
+        // Finds a leaf of the tree
+        if (decoder && !(decoder->left) && !(decoder->right)) {
+                decomp[l++] = decoder->symbol;
+                decoder = root;
+        }
+        mask >>= 1; // 1000 0000 >> 0100 0000 >> ... >> 0000 0001 >> 0000 0000
+        
+        if (!mask) {
+            ++i;
+            mask = 128;
+        }
+        
+    }
+    decomp[l] = '\0';
+    return decomp;
+}
+
+
 _modules_error shafa_decompress (char ** const path, BlocksSize * blocks_size) {
 
     _modules_error error = _SUCCESS;
@@ -325,7 +356,7 @@ _modules_error shafa_decompress (char ** const path, BlocksSize * blocks_size) {
         char* path_cod = rm_ext(*path);
         if (path_cod) {
 
-            path_cod = add_ext(path_cod, ".cod");
+            path_cod = add_ext(path_cod, CODES_EXT);
             if (path_cod) {
 
                 FILE* f_cod = fopen(path_cod, "rb");
@@ -347,7 +378,6 @@ _modules_error shafa_decompress (char ** const path, BlocksSize * blocks_size) {
                                         blocks_size->sizes = malloc(sizeof(int)*blocks_size->length);
                                         if (blocks_size->sizes) {
                                        
-                                            int l = 0;
                                             for (long long i = 0; i < blocks_size->length; ++i) {
 
                                                 BTree decoder;
@@ -355,50 +385,35 @@ _modules_error shafa_decompress (char ** const path, BlocksSize * blocks_size) {
 
                                                 if (error == _SUCCESS) {
 
-                                                    BTree root = decoder;
                                                     unsigned long sf_bsize;
                                                     if (fscanf(f_shafa, "@%lu@", &sf_bsize) == 1) {
 
-                                                        char* shafa_code = malloc(sf_bsize + 1);
+                                                        char* shafa_code = malloc(sf_bsize);
                                                         if (shafa_code) {
 
-                                                            char* decomp = malloc(blocks_size->sizes[i]+1); 
-                                                            if (decomp) {
-
-                                                                if (fread(shafa_code, 1, sf_bsize, f_shafa) == sf_bsize) { 
+                                                            if (fread(shafa_code, 1, sf_bsize, f_shafa) == sf_bsize) { 
                                                                 
-                                                                    for (int j = 0; shafa_code[j]; j++) {
+                                                                char* decomp = shafa_block_decompressor(shafa_code, sf_bsize, blocks_size->sizes , i , decoder);
 
-                                                                        if (shafa_code[j] == '0') decoder = decoder->left;
-                                                                        else decoder = decoder->right;
-                                                                        if (decoder && !(decoder->left) && !(decoder->right)) { // PROBLEM: KEEPS GOING TO 6
-                                                                           
-                                                                            decomp[l++] = decoder->symbol;
-                                                                            decoder = root;
-                                                                        }
+                                                                if (decomp) {
 
-                                                                    }
-                                                                    decomp[++l] = '\0';
-                                                                    --l;
-                                                                    if (fwrite(decomp, 1, l, f_wrt) != l) {
-                
+                                                                    if (fwrite(decomp, 1, blocks_size->sizes[i], f_wrt) != blocks_size->sizes[i]) {
                                                                         error = _FILE_STREAM_FAILED;
                                                                         i = blocks_size->length;
-
                                                                     }
-
+                                                                    free(decomp);
                                                                 }
                                                                 else {
-                                                                    error = _FILE_STREAM_FAILED;
+                                                                    error = _LACK_OF_MEMORY;
                                                                     i = blocks_size->length;
                                                                 }
-
-                                                                free(decomp);
                                                             }
                                                             else {
-                                                                error = _LACK_OF_MEMORY;
+                                                                error = _FILE_STREAM_FAILED;
                                                                 i = blocks_size->length;
                                                             }
+
+                                                               
 
                                                             free(shafa_code);
                                                         }

@@ -323,7 +323,7 @@ _modules_error create_tree (FILE* f_cod, unsigned long* block_sizes, long long i
 char* shafa_block_decompressor (char* shafa, unsigned long shafa_size, unsigned long* blocks_size, long long index, BTree decoder) 
 {
     // String for the decompressed contents 
-    char* decomp = malloc(blocks_size[index]);
+    char* decomp = malloc(blocks_size[index] + 1);
     if (!decomp) return NULL;
     BTree root = decoder;
     uint8_t mask = 128; // 1000 0000 

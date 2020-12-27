@@ -131,7 +131,6 @@ _modules_error execute_modules(Options options, char ** const ptr_file) // bette
 {
     _modules_error error;
     char * tmp_file;
-    BlocksSize blocks_size = {.sizes = NULL, .length = 0};
     
     if (options.module_f) {
         error = freq_rle_compress(ptr_file, options.f_force_rle, options.f_force_freq, options.block_size); // Returns true if file was RLE compressed
@@ -200,19 +199,18 @@ _modules_error execute_modules(Options options, char ** const ptr_file) // bette
             }
             else {
 
-                error = shafa_decompress(ptr_file, &blocks_size);
+                error = shafa_decompress(ptr_file, options.d_rle || !options.d_shaf); // RLE => Trigger: NULL | -m d
 
                 if (error) {
-                    fputs("Module d: Something went wrong while decompressing with Shannon Fano...\n", stderr);
+                    fputs("Module d: Something went wrong while decompressing...\n", stderr);
                     return error;
                 }
             }
         }
         
-        if (options.d_rle || !options.d_shaf) { // Trigger: NULL | -m d | -m d -d r
+        if (options.d_rle && !options.d_shaf) { // Trigger: -m d -d r
 
-            // if blocks_size.length != 0 then shafa_decmpress was executed so there is no need to check extension
-            if (!blocks_size.length && !check_ext(*ptr_file, RLE_EXT)) { 
+            if (!check_ext(*ptr_file, RLE_EXT)) { 
                 fprintf(stderr, "Module d: Wrong extension... Should end in %s\n", RLE_EXT);
                 return _OUTSIDE_MODULE;
             }
@@ -220,17 +218,10 @@ _modules_error execute_modules(Options options, char ** const ptr_file) // bette
             error = rle_decompress(ptr_file, &blocks_size);
 
             if (error) {
-
-                if (blocks_size.length)
-                    free(blocks_size.sizes);
-
-                fputs("Module d: Something went wrong while decompressing with RLE...\n", stderr);
+                fputs("Module d: Something went wrong while decompressing...\n", stderr);
                 return error;
             }
         }
-
-        if (blocks_size.length)
-            free(blocks_size.sizes);
     }
     return _SUCCESS;
 }

@@ -2,15 +2,15 @@
 #define UTILS_ERRORS_H
 
 
-typedef enum _error
-{
-    _SUCCESS = 0,
-    _OUTSIDE_MODULE      =  1,
-    _LACK_OF_MEMORY      = -1,
-    _FILE_INACCESSIBLE   = -2,
-    _FILE_UNRECOGNIZABLE = -3,
-    _FILE_STREAM_FAILED  = -4,
-    _FILE_TOO_SMALL      = -5,
+typedef enum _error // Use integers between 0-255 for safe integer cast to pointer in multithreading
+{                   // If it once became wid
+    _SUCCESS             = 0,
+    _OUTSIDE_MODULE      = 1,
+    _LACK_OF_MEMORY      = 2,
+    _FILE_INACCESSIBLE   = 3,
+    _FILE_UNRECOGNIZABLE = 4,
+    _FILE_STREAM_FAILED  = 5,
+    _FILE_TOO_SMALL      = 6,
 } _modules_error;
 
 

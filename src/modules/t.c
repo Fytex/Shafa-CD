@@ -6,6 +6,7 @@
  *
  ***********************************************/
 
+#include <time.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdint.h>
@@ -147,6 +148,8 @@ int not_Null (uint32_t frequencies[NUM_SYMBOLS])
 
 _modules_error get_shafa_codes(const char * path)
 {
+    clock_t t;
+    t = clock();
     FILE * fd_file, * fd_freq, * fd_codes;
     char * path_freq;
     char * path_codes;
@@ -247,4 +250,18 @@ _modules_error get_shafa_codes(const char * path)
         error = _LACK_OF_MEMORY;    
 
     return error;
+    
+    t = clock() - t;
+    double time_taken = ((double) t)/CLOCKS_PER_SEC;
+    double total_time = time_taken*1000;
+
+    puts(
+        "Francisco Neves,a93202,MIEI/CD, 1-JAN-2021\n"
+        "Leonardo Freitas,a93281,MIEI/CD, 1-JAN-2021\n"
+        "Módule:T (Cálculo dos códigos dos Símbolos\n"
+    );
+    printf("Número de blocos: %lld \n", num_blocks);    
+    printf("Tamanho dos blocos analisados no ficheiro de símbolos: %lu \n", block_size);
+    printf("Tempo de execução do módulo (milissegundos): %f \n", total_time); 
+    printf("Ficheiro gerado:\n");
 }

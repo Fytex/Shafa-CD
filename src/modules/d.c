@@ -2,18 +2,17 @@
  *
  *  Author(s): Alexandre Martins, Beatriz Rodrigues
  *  Created Date: 3 Dec 2020
- *  Updated Date: 25 Dec 2020
+ *  Updated Date: 28 Dec 2020
  *
  **************************************************/
 
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <stdbool.h>
+#include <stdint.h>
 
 #include "d.h"
 #include "utils/file.h"
-#include "utils/errors.h"
 #include "utils/extensions.h"
 
 #define n_simb 256
@@ -122,7 +121,7 @@ char* rle_block_decompressor (char* buffer, unsigned long block_size, long long*
     return sequence;
 }
 
-_modules_error _rle_decompress (char ** const path, BlocksSize BLOCKS_SIZE) 
+_modules_error _rle_decompress (char ** const path, BlocksSize blocks_size) 
 {
     _modules_error error = _SUCCESS;
     // Opening RLE file
@@ -142,9 +141,9 @@ _modules_error _rle_decompress (char ** const path, BlocksSize BLOCKS_SIZE)
                     if (f_txt) {
                         unsigned long* sizes;
                         long long length;
-                        if (BLOCKS_SIZE.length) { // There is data saved from the COD file during shafa decompression
-                            sizes = BLOCKS_SIZE.sizes;
-                            length = BLOCKS_SIZE.length;
+                        if (blocks_size.length) { // There is data saved from the COD file during shafa decompression
+                            sizes = blocks_size.sizes;
+                            length = blocks_size.length;
                         }
                         else { // There isn't data available, therefore it's necessary to use the FREQ file to obtain information
                             char mode;
@@ -240,23 +239,10 @@ _modules_error _rle_decompress (char ** const path, BlocksSize BLOCKS_SIZE)
     return error;
 }
 
-_modules_error rle_decompress (char ** const path) {
-    BlocksSize bs;
-    bs.length = 0;
-    return _rle_decompress(path, bs);
-}
-
-
-
 typedef struct btree{
     char symbol;
     struct btree *left,*right;
 } *BTree;
-
-typedef struct {
-    unsigned long * sizes;
-    long long length;
-} BlocksSize;
 
 
 void free_tree(BTree tree) {
@@ -488,12 +474,12 @@ _modules_error shafa_decompress (char ** const path, bool rle_decompression)
                                             }
                                             // Executes the rle decompression, using the data read in the COD file (avoids having to read the FREQ file to get the same data)
                                             if (!error && rle_decompression) {
-                                                BlocksSize BLOCKS_SIZE; 
-                                                BLOCKS_SIZE.sizes = sizes; 
-                                                BLOCKS_SIZE.length = length;
+                                                BlocksSize blocks_size; 
+                                                blocks_size.sizes = sizes; 
+                                                blocks_size.length = length;
                                                 fclose(f_wrt); // Neccessary to close to be able to read the RLE file generated correctly in the rle decompression
                                                 flag = 0; // Says that the RLE file doesn't need to be closed further ahead (avoids a double free)
-                                                error = _rle_decompress(&path_wrt, BLOCKS_SIZE);
+                                                error = _rle_decompress(&path_wrt, blocks_size);
                                                 
                                             }
                                             free(sizes);
@@ -517,7 +503,9 @@ _modules_error shafa_decompress (char ** const path, bool rle_decompression)
                                 error = _FILE_STREAM_FAILED;
                             }
 
-                            if (flag) fclose(f_wrt);
+                            if (flag) {
+                                fclose(f_wrt);
+                            }
                             
                         }
                         else {

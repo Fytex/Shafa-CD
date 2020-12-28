@@ -18,14 +18,14 @@
 #define NUM_SYMBOLS 256
 #define MIN(a,b) ((a) < (b) ? a : b)
 
-void read_Block (char * codes_input, unsigned long frequencies[NUM_SYMBOLS]) 
+static void read_Block(char * codes_input, unsigned long frequencies[NUM_SYMBOLS]) 
 {
     char * ptr = codes_input;
     unsigned long auxfreq;
-    int nread=0;
+    int nread = 0;
 
     for (int i = 0; i < NUM_SYMBOLS; ++i){
-        if ( sscanf(ptr, "%u[^;]",&frequencies[i]) == 1 ){
+        if (sscanf(ptr, "%lu[^;]", &frequencies[i]) == 1){
                      
             auxfreq = frequencies[i];
              
@@ -48,7 +48,7 @@ void read_Block (char * codes_input, unsigned long frequencies[NUM_SYMBOLS])
     }
 }
 
-void insert_Sort (unsigned long frequencies[], int positions[], int left, int right)
+static void insert_Sort (unsigned long frequencies[], int positions[], int left, int right)
 {
     unsigned long tmpFreq;
     int j, a, iters;
@@ -76,52 +76,55 @@ void insert_Sort (unsigned long frequencies[], int positions[], int left, int ri
 } 
 
 
-unsigned long sum_Freq (unsigned long frequencies[], int first, int last)
+static unsigned long sum_Freq (unsigned long frequencies[], int first, int last)
 {
-    unsigned long soma = 0;
+    unsigned long sum = 0;
 
-    for (int i = first; i <= last ; i++)
-        soma += frequencies[i];
+    for (int i = first; i <= last; i++)
+        sum += frequencies[i];
 
-    return soma;
+    return sum;
 }
 
 
-int best_Division (unsigned long frequencies[], int first, int last)
+static int best_Division (unsigned long frequencies[], int first, int last)
 {
     
     int division = first, total , mindif, dif;
     unsigned long g1 = 0;
 
-    total = mindif = dif = sum_Freq(frequencies,first,last);
+    total = mindif = dif = sum_Freq(frequencies, first, last);
 
     while (dif == mindif){
+
         g1 = g1 + frequencies[division];
-        dif = abs(2*g1 -total);
+        dif = abs(2 * g1 - total);
+
             if (dif < mindif){
-                division = division + 1 ;
+                division = division + 1;
                 mindif = dif;
             }
             else
-                dif = mindif +1 ;
+                dif = mindif + 1;
     }
 
     return division - 1;
 }
 
-void add_bit_to_code(char value, char codes[NUM_SYMBOLS][NUM_SYMBOLS], int start, int end)
+static void add_bit_to_code(char value, char codes[NUM_SYMBOLS][NUM_SYMBOLS], int start, int end)
 {
     char * symbol_codes;
 
     for ( ; start <= end; ++start) {
         symbol_codes = codes[start];
+
         for ( ; *symbol_codes; ++symbol_codes);
         *symbol_codes = value;
     }
 }
 
 
-void sf_codes (unsigned long frequencies[], char codes[NUM_SYMBOLS][NUM_SYMBOLS], int start, int end)
+static void sf_codes (unsigned long frequencies[], char codes[NUM_SYMBOLS][NUM_SYMBOLS], int start, int end)
 {
     if (start != end){
                
@@ -135,7 +138,7 @@ void sf_codes (unsigned long frequencies[], char codes[NUM_SYMBOLS][NUM_SYMBOLS]
     }
 }
 
-int not_Null (unsigned long frequencies[NUM_SYMBOLS])
+static int not_Null (unsigned long frequencies[NUM_SYMBOLS])
 {
     int r = 0;
     for (int i = NUM_SYMBOLS - 1; frequencies[i] == 0; --i) ++r;
@@ -144,12 +147,26 @@ int not_Null (unsigned long frequencies[NUM_SYMBOLS])
 }
 
 
+static inline void print_summary(const long long num_blocks, const unsigned long block_size, const double total_time, const char * const path)
+{
+    printf(
+            "Francisco Neves,a93202,MIEI/CD, 1-JAN-2021\n"
+            "Leonardo Freitas,a93281,MIEI/CD, 1-JAN-2021\n"
+            "Módule:T (Calculation of symbol codes)\n"
+            "Number of blocks: %lld\n"  
+            "Size of blocks analyzed in the symbol file: %lu\n"
+            "Module runtime (milliseconds): %f\n"
+            "Generated file %s\n" ,
+            num_blocks, block_size, total_time, path
+        );
+}
+
+
 // This module should receive a .freq file, but shafa.c will handle that file and pass to this module the original file
 
 _modules_error get_shafa_codes(const char * path)
 {
     clock_t t;
-    t = clock();
     FILE * fd_file, * fd_freq, * fd_codes;
     char * path_freq;
     char * path_codes;
@@ -160,99 +177,96 @@ _modules_error get_shafa_codes(const char * path)
     int freq_notnull;
     int error = _SUCCESS;
     int positions[NUM_SYMBOLS];
-    unsigned long frequencies[NUM_SYMBOLS] ;
-    double time_taken;
+    unsigned long frequencies[NUM_SYMBOLS];
     double total_time;
+    char (* codes)[NUM_SYMBOLS];
 
+    t = clock();
 
-    path_freq = add_ext (path, FREQ_EXT);
+    path_freq = add_ext(path, FREQ_EXT);
 
-    if (path_freq){
+    if (path_freq) {
 
-        fd_freq = fopen (path_freq, "rb");
+        fd_freq = fopen(path_freq, "rb");
 
-        if (fd_freq){
+        if (fd_freq) {
 
-            if (fscanf(fd_freq, "@%c@%lld", &mode, &num_blocks) == 2){
+            if (fscanf(fd_freq, "@%c@%lld", &mode, &num_blocks) == 2) {
 
-                if (mode != 'R' && mode != 'N')
-                    return _FILE_UNRECOGNIZABLE;
-                
+                if (mode == 'R' || mode == 'N') {
 
-                fd_file = fopen(path, "rb");
+                    fd_file = fopen(path, "rb");
 
-                if (fd_file){
+                    if (fd_file) {
 
-                    path_codes = add_ext (path, CODES_EXT);
+                        path_codes = add_ext(path, CODES_EXT);
 
-                    if (path_codes){
+                        if (path_codes) {
 
-                        fd_codes = fopen (path_codes, "wb");
+                            fd_codes = fopen(path_codes, "wb");
 
-                        if (fd_codes){
+                            if (fd_codes) {
 
-                            fprintf (fd_codes, "@%c@%lld", mode, num_blocks);
+                                fprintf(fd_codes, "@%c@%lld", mode, num_blocks);
 
-                            for (long long i = 0; i < num_blocks; ++i) {
+                                for (long long i = 0; i < num_blocks && !error; ++i) {
 
-                                char (* codes)[NUM_SYMBOLS] = calloc(1, sizeof(char[NUM_SYMBOLS][NUM_SYMBOLS]));
+                                    codes = calloc(1, sizeof(char[NUM_SYMBOLS][NUM_SYMBOLS]));
 
-                                memset(frequencies, 0, NUM_SYMBOLS * 4);
-                                for (int j = 0; j < NUM_SYMBOLS; ++j) positions[j] = j;
+                                    if (codes) {
 
-                                fscanf(fd_freq, "@%lu", &block_size);
-                                block_input = malloc (9 * 256 + 255);
+                                        memset(frequencies, 0, NUM_SYMBOLS * 4);
+                                        for (int j = 0; j < NUM_SYMBOLS; ++j) positions[j] = j;
 
-                                fscanf (fd_freq, "@%[^@]", block_input);
-                                
-                                read_Block(block_input, frequencies);
-                                insert_Sort(frequencies, positions, 0, 255);
+                                        fscanf(fd_freq, "@%lu", &block_size);
+                                        block_input = malloc(9 * NUM_SYMBOLS + (NUM_SYMBOLS - 1) + 1); // 9 (max digits for frequency) + 256 (symbols) + 255 (';') + 1 (NULL terminator)
 
-                                freq_notnull = not_Null(frequencies);
+                                        if (block_input) {
+                                            fscanf(fd_freq, "@%2559[^@]", block_input);
+                                            
+                                            read_Block(block_input, frequencies);
+                                            insert_Sort(frequencies, positions, 0, NUM_SYMBOLS - 1);
 
-                                sf_codes(frequencies, codes, 0, freq_notnull);
+                                            freq_notnull = not_Null(frequencies);
 
-                                fprintf(fd_codes, "@%lu@", block_size);
-                                for (int i = 0; i < NUM_SYMBOLS - 1; ++i) fprintf(fd_codes, "%s;", codes[positions[i]]);
-                                fprintf(fd_codes, "%s", codes[positions[i]]);
+                                            sf_codes(frequencies, codes, 0, freq_notnull);
 
-                                free(block_input);
-                                free(codes);
+                                            fprintf(fd_codes, "@%lu@", block_size);
+                                            for (int i = 0; i < NUM_SYMBOLS - 1; ++i) fprintf(fd_codes, "%s;", codes[positions[i]]);
+                                            fprintf(fd_codes, "%s", codes[positions[i]]);
 
+                                            free(block_input);
+                                        }
+                                        else
+                                            error = _LACK_OF_MEMORY;
+
+                                        free(codes);
+                                    }
+                                    else
+                                        error = _LACK_OF_MEMORY;
+
+                                }
+
+                                if (!error)
+                                    fprintf(fd_codes, "@0");
+
+                                fclose(fd_codes);
                             }
-                            fprintf(fd_codes, "@0");
-
-                            fclose(fd_codes);
-                            
-                            t = clock() - t;
-                            time_taken = ((double) t) / CLOCKS_PER_SEC;
-                            total_time = time_taken * 1000;
-
-                            printf(
-                                "Francisco Neves,a93202,MIEI/CD, 1-JAN-2021\n"
-                                "Leonardo Freitas,a93281,MIEI/CD, 1-JAN-2021\n"
-                                "Módule:T (Calculation of symbol codes)\n"
-                                "Number of blocks: %lld\n"  
-                                "Size of blocks analyzed in the symbol file: %lu\n"
-                                "Module runtime (milliseconds): %f\n"
-                                "Generated file %s\n" ,
-                                num_blocks, block_size, total_time, path_codes
-                                  );                      
+                            else {
+                                free(path_codes);
+                                error = _FILE_INACCESSIBLE;
+                            }
                         }
-                        else {
-                            free (path_codes);
-                            error = _FILE_INACCESSIBLE;
-                        }
-                   
+                        else
+                            error = _LACK_OF_MEMORY;
+
+                        fclose(fd_file); 
                     }
                     else
-                        error = _LACK_OF_MEMORY;
-
-                    fclose(fd_file);
-                    
+                        error = _FILE_INACCESSIBLE;
                 }
                 else
-                    error = _FILE_INACCESSIBLE;
+                    error = _FILE_UNRECOGNIZABLE;     
             }
             else 
                 error = _FILE_UNRECOGNIZABLE;
@@ -263,10 +277,16 @@ _modules_error get_shafa_codes(const char * path)
             error = _FILE_INACCESSIBLE;
         
         free(path_freq);
-
     }
     else
-        error = _LACK_OF_MEMORY;    
+        error = _LACK_OF_MEMORY;  
+
+    if (!error) {
+        t = clock() - t;
+        total_time = (((double) t) / CLOCKS_PER_SEC) * 1000;
+
+        print_summary(num_blocks, block_size, total_time, path_codes);
+    }              
 
     return error;
 }

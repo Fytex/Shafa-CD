@@ -193,11 +193,7 @@ _modules_error get_shafa_codes(const char * path)
 
             if (fscanf(fd_freq, "@%c@%lld", &mode, &num_blocks) == 2) {
 
-                if (mode == 'R' || mode == 'N') {
-
-                    fd_file = fopen(path, "rb");
-
-                    if (fd_file) {
+                if (mode == 'R' || mode == 'N') 
 
                         path_codes = add_ext(path, CODES_EXT);
 
@@ -244,7 +240,6 @@ _modules_error get_shafa_codes(const char * path)
                                     }
                                     else
                                         error = _LACK_OF_MEMORY;
-
                                 }
 
                                 if (!error)
@@ -259,12 +254,7 @@ _modules_error get_shafa_codes(const char * path)
                         }
                         else
                             error = _LACK_OF_MEMORY;
-
-                        fclose(fd_file); 
                     }
-                    else
-                        error = _FILE_INACCESSIBLE;
-                }
                 else
                     error = _FILE_UNRECOGNIZABLE;     
             }
@@ -275,11 +265,11 @@ _modules_error get_shafa_codes(const char * path)
         }
         else 
             error = _FILE_INACCESSIBLE;
-        
+            
         free(path_freq);
     }
     else
-        error = _LACK_OF_MEMORY;  
+         error = _LACK_OF_MEMORY;  
 
     if (!error) {
         t = clock() - t;

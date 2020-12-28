@@ -17,7 +17,7 @@ typedef struct {
  @param decompress_rle Decompresses file with RLE's algorithm too
  @returns Error status
 */
-_modules_error _shafa_decompress(char ** path, bool decompress_rle);
+_modules_error shafa_decompress(char ** path, bool decompress_rle);
 
 
 /**

@@ -215,7 +215,7 @@ _modules_error execute_modules(Options options, char ** const ptr_file) // bette
                 return _OUTSIDE_MODULE;
             }
 
-            error = rle_decompress(ptr_file, &blocks_size);
+            error = rle_decompress(ptr_file);
 
             if (error) {
                 fputs("Module d: Something went wrong while decompressing...\n", stderr);

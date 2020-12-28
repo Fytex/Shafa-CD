@@ -155,8 +155,8 @@ _modules_error get_shafa_codes(const char * path)
     char * path_codes;
     char * block_input;
     char mode;
-    long long num_blocks;
-    unsigned long block_size;
+    long long num_blocks = 0;
+    unsigned long block_size = 0;
     int freq_notnull;
     int error = _SUCCESS;
     int positions[NUM_SYMBOLS];
@@ -168,7 +168,7 @@ _modules_error get_shafa_codes(const char * path)
 
     if (path_freq){
 
-        fd_freq = fopen (path_freq, "rb");
+        fd_freq = fopen ("path_freq", "rb");
 
         if (fd_freq){
 
@@ -190,6 +190,8 @@ _modules_error get_shafa_codes(const char * path)
 
                         if (fd_codes){
 
+                            fprintf (fd_codes, "@%c@%lld", mode, num_blocks);
+
                             for (long long i = 0; i < num_blocks; ++i) {
 
                                 char (* codes)[NUM_SYMBOLS] = calloc (1, sizeof(char [NUM_SYMBOLS][NUM_SYMBOLS]));
@@ -197,7 +199,7 @@ _modules_error get_shafa_codes(const char * path)
                                 memset(frequencies, 0, NUM_SYMBOLS*4);
                                 for (int j = 0; j < NUM_SYMBOLS; ++j)positions[j] = j;
 
-                                fscanf(fd_freq, "@%lu", &block_size);
+                                fscanf(fd_freq, "@%lu@", &block_size);
                                 block_input = malloc (9 * 256 + 255);
 
                                 fscanf (fd_freq, "@%[^@]", block_input);
@@ -209,12 +211,14 @@ _modules_error get_shafa_codes(const char * path)
 
                                 sf_codes(frequencies, codes, 0, freq_notnull);
 
-                                //Now it is just write to the .cod the codes
+                                fprintf(fd_codes, "%d@", block_size);
+                                for (int i = 0; i < NUM_SYMBOLS; ++i) fprintf(fd_codes, "%s;", codes[positions[i]]);
 
                                 free(block_input);
                                 free(codes);
 
                             }
+                            fprintf(fd_codes, "@0");
 
                             fclose(fd_codes);
                                                        
@@ -260,8 +264,8 @@ _modules_error get_shafa_codes(const char * path)
         "Leonardo Freitas,a93281,MIEI/CD, 1-JAN-2021\n"
         "Módule:T (Cálculo dos códigos dos Símbolos\n"
     );
-    printf("Número de blocos: %lld \n", num_blocks);    
-    printf("Tamanho dos blocos analisados no ficheiro de símbolos: %lu \n", block_size);
-    printf("Tempo de execução do módulo (milissegundos): %f \n", total_time); 
-    printf("Ficheiro gerado:\n");
+    printf("Número de blocos: %lld\n", num_blocks);    
+    printf("Tamanho dos blocos analisados no ficheiro de símbolos: %lu\n", block_size);
+    printf("Tempo de execução do módulo (milissegundos): %f\n", total_time); 
+    printf("Ficheiro gerado: %s\n", path_codes);
 }

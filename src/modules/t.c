@@ -167,7 +167,7 @@ static inline void print_summary(const long long num_blocks, const unsigned long
 _modules_error get_shafa_codes(const char * path)
 {
     clock_t t;
-    FILE * fd_file, * fd_freq, * fd_codes;
+    FILE * fd_freq, * fd_codes;
     char * path_freq;
     char * path_codes;
     char * block_input;
@@ -193,68 +193,69 @@ _modules_error get_shafa_codes(const char * path)
 
             if (fscanf(fd_freq, "@%c@%lld", &mode, &num_blocks) == 2) {
 
-                if (mode == 'R' || mode == 'N') 
+                if (mode == 'R' || mode == 'N') {
 
-                        path_codes = add_ext(path, CODES_EXT);
+                    path_codes = add_ext(path, CODES_EXT);
 
-                        if (path_codes) {
+                    if (path_codes) {
 
-                            fd_codes = fopen(path_codes, "wb");
+                        fd_codes = fopen(path_codes, "wb");
 
-                            if (fd_codes) {
+                        if (fd_codes) {
 
-                                fprintf(fd_codes, "@%c@%lld", mode, num_blocks);
+                            fprintf(fd_codes, "@%c@%lld", mode, num_blocks);
 
-                                for (long long i = 0; i < num_blocks && !error; ++i) {
+                            for (long long i = 0; i < num_blocks && !error; ++i) {
 
-                                    codes = calloc(1, sizeof(char[NUM_SYMBOLS][NUM_SYMBOLS]));
+                                codes = calloc(1, sizeof(char[NUM_SYMBOLS][NUM_SYMBOLS]));
 
-                                    if (codes) {
+                                if (codes) {
 
-                                        memset(frequencies, 0, NUM_SYMBOLS * 4);
-                                        for (int j = 0; j < NUM_SYMBOLS; ++j) positions[j] = j;
+                                    memset(frequencies, 0, NUM_SYMBOLS * 4);
+                                    for (int j = 0; j < NUM_SYMBOLS; ++j) positions[j] = j;
 
-                                        fscanf(fd_freq, "@%lu", &block_size);
-                                        block_input = malloc(9 * NUM_SYMBOLS + (NUM_SYMBOLS - 1) + 1); // 9 (max digits for frequency) + 256 (symbols) + 255 (';') + 1 (NULL terminator)
+                                    fscanf(fd_freq, "@%lu", &block_size);
+                                    block_input = malloc(9 * NUM_SYMBOLS + (NUM_SYMBOLS - 1) + 1); // 9 (max digits for frequency) + 256 (symbols) + 255 (';') + 1 (NULL terminator)
 
-                                        if (block_input) {
-                                            fscanf(fd_freq, "@%2559[^@]", block_input);
+                                    if (block_input) {
+                                        fscanf(fd_freq, "@%2559[^@]", block_input);
                                             
-                                            read_Block(block_input, frequencies);
-                                            insert_Sort(frequencies, positions, 0, NUM_SYMBOLS - 1);
+                                        read_Block(block_input, frequencies);
+                                        insert_Sort(frequencies, positions, 0, NUM_SYMBOLS - 1);
 
-                                            freq_notnull = not_Null(frequencies);
+                                        freq_notnull = not_Null(frequencies);
 
-                                            sf_codes(frequencies, codes, 0, freq_notnull);
+                                        sf_codes(frequencies, codes, 0, freq_notnull);
 
-                                            fprintf(fd_codes, "@%lu@", block_size);
-                                            for (int i = 0; i < NUM_SYMBOLS - 1; ++i) fprintf(fd_codes, "%s;", codes[positions[i]]);
-                                            fprintf(fd_codes, "%s", codes[positions[i]]);
+                                        fprintf(fd_codes, "@%lu@", block_size);
+                                        for (int i = 0; i < NUM_SYMBOLS - 1; ++i) fprintf(fd_codes, "%s;", codes[positions[i]]);
+                                        fprintf(fd_codes, "%s", codes[positions[i]]);
 
-                                            free(block_input);
-                                        }
-                                        else
-                                            error = _LACK_OF_MEMORY;
-
-                                        free(codes);
+                                        free(block_input);
                                     }
                                     else
                                         error = _LACK_OF_MEMORY;
+
+                                    free(codes);
                                 }
+                                else
+                                    error = _LACK_OF_MEMORY;
 
-                                if (!error)
-                                    fprintf(fd_codes, "@0");
+                            }
 
-                                fclose(fd_codes);
-                            }
-                            else {
-                                free(path_codes);
-                                error = _FILE_INACCESSIBLE;
-                            }
+                            if (!error)
+                                fprintf(fd_codes, "@0");
+
+                            fclose(fd_codes);
                         }
-                        else
-                            error = _LACK_OF_MEMORY;
+                        else {
+                            free(path_codes);
+                            error = _FILE_INACCESSIBLE;
+                        }
                     }
+                    else
+                        error = _LACK_OF_MEMORY;      
+                }
                 else
                     error = _FILE_UNRECOGNIZABLE;     
             }
@@ -265,11 +266,11 @@ _modules_error get_shafa_codes(const char * path)
         }
         else 
             error = _FILE_INACCESSIBLE;
-            
+        
         free(path_freq);
     }
     else
-         error = _LACK_OF_MEMORY;  
+        error = _LACK_OF_MEMORY;  
 
     if (!error) {
         t = clock() - t;
@@ -280,4 +281,3 @@ _modules_error get_shafa_codes(const char * path)
 
     return error;
 }
- 

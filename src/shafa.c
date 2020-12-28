@@ -131,6 +131,7 @@ _modules_error execute_modules(Options options, char ** const ptr_file) // bette
 {
     _modules_error error;
     char * tmp_file;
+    bool file_rle_shaf = false;
     
     if (options.module_f) {
         error = freq_rle_compress(ptr_file, options.f_force_rle, options.f_force_freq, options.block_size); // Returns true if file was RLE compressed
@@ -199,7 +200,16 @@ _modules_error execute_modules(Options options, char ** const ptr_file) // bette
             }
             else {
 
-                error = shafa_decompress(ptr_file, options.d_rle || !options.d_shaf); // RLE => Trigger: NULL | -m d
+                if (options.d_rle) {
+                    if (check_ext(*ptr_file, RLE_EXT SHAFA_EXT))
+                        file_rle_shaf = true; // Avoid executing extension check twice
+                    else {
+                        fprintf(stderr, "Module d: Wrong extension... Should end in %s\n", RLE_EXT SHAFA_EXT);
+                        return _OUTSIDE_MODULE;
+                    }
+                }
+
+                error = shafa_decompress(ptr_file, (options.d_rle || !options.d_shaf) && (file_rle_shaf || check_ext(*ptr_file, RLE_EXT SHAFA_EXT))); // RLE => Trigger: NULL | -m d
 
                 if (error) {
                     fputs("Module d: Something went wrong while decompressing...\n", stderr);

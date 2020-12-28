@@ -35,9 +35,9 @@ _modules_error _rle_decompress(char ** path, const BlocksSize blocks_size);
  @param path Pointer to the original/RLE file's path
  @returns Error status
 */
-static inline _modules_error rle_compress(char ** path)
+static inline _modules_error rle_decompress(char ** path)
 {
-    return _rle_compress(path, (BlocksSize) {NULL, 0});
+    return _rle_decompress(path, (BlocksSize) {NULL, 0});
 }
 
 

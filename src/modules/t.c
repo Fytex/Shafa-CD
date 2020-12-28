@@ -211,7 +211,7 @@ _modules_error get_shafa_codes(const char * path)
 
                                 sf_codes(frequencies, codes, 0, freq_notnull);
 
-                                fprintf(fd_codes, "%d@", block_size);
+                                fprintf(fd_codes, "%lu@", block_size);
                                 for (int i = 0; i < NUM_SYMBOLS; ++i) fprintf(fd_codes, "%s;", codes[positions[i]]);
 
                                 free(block_input);

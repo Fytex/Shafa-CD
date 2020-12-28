@@ -268,3 +268,4 @@ _modules_error get_shafa_codes(const char * path)
         error = _LACK_OF_MEMORY;    
 
     return error;
+}

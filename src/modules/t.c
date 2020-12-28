@@ -12,7 +12,7 @@
 #include <stdint.h>
 #include <string.h>
 
-#include "t.h"
+#include "utils/errors.h"
 #include "utils/extensions.h"
 
 #define NUM_SYMBOLS 256

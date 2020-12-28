@@ -168,7 +168,7 @@ _modules_error get_shafa_codes(const char * path)
 
     if (path_freq){
 
-        fd_freq = fopen ("path_freq", "rb");
+        fd_freq = fopen (path_freq, "rb");
 
         if (fd_freq){
 
@@ -199,7 +199,7 @@ _modules_error get_shafa_codes(const char * path)
                                 memset(frequencies, 0, NUM_SYMBOLS*4);
                                 for (int j = 0; j < NUM_SYMBOLS; ++j)positions[j] = j;
 
-                                fscanf(fd_freq, "@%lu@", &block_size);
+                                fscanf(fd_freq, "@%lu", &block_size);
                                 block_input = malloc (9 * 256 + 255);
 
                                 fscanf (fd_freq, "@%[^@]", block_input);
@@ -211,14 +211,17 @@ _modules_error get_shafa_codes(const char * path)
 
                                 sf_codes(frequencies, codes, 0, freq_notnull);
 
-                                fprintf(fd_codes, "%lu@", block_size);
-                                for (int i = 0; i < NUM_SYMBOLS; ++i) fprintf(fd_codes, "%s;", codes[positions[i]]);
+                                fprintf(fd_codes, "@%lu@", block_size);
+                                for (int i = 0; i < NUM_SYMBOLS - 1; ++i) fprintf(fd_codes, "%s;", codes[positions[i]]);
+                                fprintf(fd_codes, "%s", codes[positions[i]]);
 
                                 free(block_input);
                                 free(codes);
 
                             }
                             fprintf(fd_codes, "@0");
+
+                            fclose(fd_codes);
                             
                             t = clock() - t;
                              double time_taken = ((double) t)/CLOCKS_PER_SEC;
@@ -229,14 +232,10 @@ _modules_error get_shafa_codes(const char * path)
                                  "Leonardo Freitas,a93281,MIEI/CD, 1-JAN-2021\n"
                                  "Módule:T (Calculation of symbol codes)\n"
                                 );
-                            printf("Number of blocks: %lld\n", num_blocks);    
+                            printf("Number of blocks: %lld\n", num_blocks); 
                             printf("Size of blocks analyzed in the symbol file: %lu\n", block_size);
                             printf("Module runtime (milliseconds): %f\n", total_time); 
-                            printf("Generated file %s\n", path_codes);
-
-                            fclose(fd_codes);
-                                                       
-
+                            printf("Generated file %s\n", path_codes);                      
                         }
                         else {
                             free (path_codes);

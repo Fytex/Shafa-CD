@@ -2,7 +2,7 @@
  *
  *  Author(s): Alexandre Martins, Beatriz Rodrigues
  *  Created Date: 3 Dec 2020
- *  Updated Date: 24 Dec 2020
+ *  Updated Date: 25 Dec 2020
  *
  **************************************************/
 
@@ -21,21 +21,23 @@
 
 char* load_rle (FILE* f_rle, unsigned long size_of_block, _modules_error* error) 
 {
+    // Memory allocation for the buffer that will contain the contents of one block of symbols
     char* buffer = malloc(size_of_block + 1);
-    // Memory allocation was successful
+
     if (buffer) {
-        // The amount of bytes read and the amount of bytes that were supposed to be read match
+        // The function fread loads the said contents into the buffer
+        // For the correct execution, the amount read by fread has to match the amount that was supposed to be read: size_of_block
         if (fread(buffer,1,size_of_block, f_rle) == size_of_block) {
 
             buffer[size_of_block] = '\0'; // Ending the string
 
-        } // If said amounts don't match there was a file stream fail
+        } // Error caused by said amount not matching
         else {
             *error = _FILE_STREAM_FAILED;
             buffer = NULL;
         }
 
-    }// Memory allocation wasn't successful
+    } 
     else {
         *error = _LACK_OF_MEMORY;
     }
@@ -48,7 +50,7 @@ char* load_rle (FILE* f_rle, unsigned long size_of_block, _modules_error* error)
 char* rle_block_decompressor (char* buffer, unsigned long block_size, long long* size_string, _modules_error* error) 
 {
     // Assumption of the smallest size possible for the decompressed file
-    int orig_size;
+    unsigned long orig_size; 
     if (block_size <= _64KiB) 
         orig_size = _64KiB + _1KiB;
     else if (block_size <= _640KiB) 
@@ -59,12 +61,12 @@ char* rle_block_decompressor (char* buffer, unsigned long block_size, long long*
         orig_size = _64MiB + _1KiB;
 
     // Allocation of the corresponding memory 
-    char* sequence = malloc(sizeof(char)*orig_size + 1);
+    char* sequence = malloc(orig_size + 1);
     if (sequence) {
 
         // Loop to decompress block by block
-        int l = 0;
-        for (int i = 0; i < block_size; ++i) {
+        unsigned long l = 0; // Variable to be used to go through the sequence string 
+        for (unsigned long i = 0; i < block_size; ++i) {
             
             char simb = buffer[i];
             int n_reps = 0;
@@ -73,7 +75,7 @@ char* rle_block_decompressor (char* buffer, unsigned long block_size, long long*
                 simb = buffer[++i];
                 n_reps = buffer[++i];
             } 
-            // Re-allocation of memory in string
+            // Re-allocation of memory in the string
             if (l + n_reps > orig_size) {
                 switch (orig_size) {
                     case _64KiB + _1KiB:
@@ -85,16 +87,17 @@ char* rle_block_decompressor (char* buffer, unsigned long block_size, long long*
                     case _8MiB + _1KiB:
                         orig_size = _64MiB + _1KiB;
                         break;
-                    default:
+                    default: // Invalid size
                         *error = _FILE_UNRECOGNIZABLE;
                         free(sequence);
                         return NULL;
                 }
-
                 sequence = realloc(sequence, orig_size);
+                // In case of realloc failure, we free the previous memory allocation
                 if (!sequence) {
                     *error = _LACK_OF_MEMORY;
                     free(sequence);
+                    sequence = NULL;
                     break;
                 }
 
@@ -119,7 +122,7 @@ char* rle_block_decompressor (char* buffer, unsigned long block_size, long long*
     return sequence;
 }
 
-_modules_error rle_decompress (char ** const path, const BlocksSize* blocks_size)  
+_modules_error _rle_decompress (char ** const path, BlocksSize BLOCKS_SIZE) 
 {
     _modules_error error = _SUCCESS;
     // Opening RLE file
@@ -137,36 +140,72 @@ _modules_error rle_decompress (char ** const path, const BlocksSize* blocks_size
                     // Opening TXT file
                     FILE* f_txt = fopen(path_txt, "wb");
                     if (f_txt) {
-                        // Loop to execute block by block
-                        for (long long i = 0; i < blocks_size->length; ++i) {
-                            // Loading rle block
-                            char* buffer = load_rle(f_rle, blocks_size->sizes[i], &error);
-                            if (error == _SUCCESS) {
-                                // Decompressing the RLE block
-                                long long size_sequence;
-                                char* sequence = rle_block_decompressor(buffer, blocks_size->sizes[i], &size_sequence, &error);
-                                if (error == _SUCCESS) {
-                                    // Writing the decompressed block in TXT file
-                                    if (fwrite(sequence, 1, size_sequence, f_txt) != size_sequence) {
-                                        error = _FILE_STREAM_FAILED;
-                                        i = blocks_size->length;
-                                    }
+                        unsigned long* sizes;
+                        long long length;
+                        if (BLOCKS_SIZE.length) { // There is data saved from the COD file during shafa decompression
+                            sizes = BLOCKS_SIZE.sizes;
+                            length = BLOCKS_SIZE.length;
+                        }
+                        else { // There isn't data available, therefore it's necessary to use the FREQ file to obtain information
+                            char mode;
+                            // Reads the header of the FREQ file
+                            if (fscanf(f_freq, "@%c@%lld", &mode, &length) == 2) {
+                                // Checks if the format is correct
+                                if ((mode == 'N') || (mode == 'R')) {
+                                    // Allocates memory for an array to contain the sizes of all the blocks of the file
+                                    sizes = malloc(length);
 
-                                    free(sequence);
+                                    if (sizes) {
+                                        
+                                        for (long long i = 0; i < length && !error; ++i) {
+
+                                            if (fscanf(f_freq, "@%lu@%*[^@]", sizes + i) != 1) {
+
+                                                error = _FILE_STREAM_FAILED;
+                                            }
+
+                                        }
+
+                                    }
+                                    else {
+                                        error = _LACK_OF_MEMORY;
+                                    }
 
                                 }
                                 else {
-                                    i = blocks_size->length;
+                                    error = _FILE_UNRECOGNIZABLE;
                                 }
-                                free(buffer);
 
-                            }
+                            } 
                             else {
-                                i = blocks_size->length;
+                                error = _FILE_STREAM_FAILED;
                             }
 
                         }
                         
+                        // Loop to execute block by block
+                        for (long long i = 0; i < length && !error; ++i) {
+                            // Loading rle block
+                            char* buffer = load_rle(f_rle, sizes[i], &error);
+                            if (!error) {
+                                // Decompressing the RLE block
+                                long long size_sequence;
+                                char* sequence = rle_block_decompressor(buffer, sizes[i], &size_sequence, &error);
+                                if (!error) {
+                                    // Writing the decompressed block in TXT file
+                                    if (fwrite(sequence, 1, size_sequence, f_txt) != size_sequence) {
+
+                                        error = _FILE_STREAM_FAILED;
+    
+                                    }
+                                    free(sequence);
+
+                                }
+                                free(buffer);
+
+                            }
+                    
+                        }
                         fclose(f_txt);
                     }
                     else {
@@ -201,6 +240,12 @@ _modules_error rle_decompress (char ** const path, const BlocksSize* blocks_size
     return error;
 }
 
+_modules_error rle_decompress (char ** const path) {
+    BlocksSize bs;
+    bs.length = 0;
+    return _rle_decompress(path, bs);
+}
+
 
 
 typedef struct btree{
@@ -208,7 +253,10 @@ typedef struct btree{
     struct btree *left,*right;
 } *BTree;
 
-
+typedef struct {
+    unsigned long * sizes;
+    long long length;
+} BlocksSize;
 
 
 void free_tree(BTree tree) {
@@ -225,6 +273,7 @@ void free_tree(BTree tree) {
 _modules_error add_tree(BTree* decoder, char *code, char symbol) 
 {
     int i;
+    // Creation of the path to the symbol we are placing
     for (i = 0; code[i]; ++i) {
         if (*decoder && code[i] == '0') decoder = &(*decoder)->left;
         else if (*decoder && code[i] == '1') decoder = &(*decoder)->right;
@@ -236,6 +285,7 @@ _modules_error add_tree(BTree* decoder, char *code, char symbol)
             else decoder = &(*decoder)->right;
         } 
     }
+    // Adding the symbol to the corresponding leaf of the tree
     *decoder = malloc(sizeof(struct btree));
     (*decoder)->symbol = symbol;
     (*decoder)->left = (*decoder)->right = NULL;
@@ -247,7 +297,7 @@ _modules_error create_tree (FILE* f_cod, unsigned long* block_sizes, long long i
     _modules_error error = _SUCCESS;
     // Initialize root without meaning 
     *decoder = malloc(sizeof(struct btree));
-   
+    
     if (*decoder) {
         
         (*decoder)->left = (*decoder)->right = NULL;
@@ -259,9 +309,9 @@ _modules_error create_tree (FILE* f_cod, unsigned long* block_sizes, long long i
             // Saves it to the array
             block_sizes[index] = crrb_size; 
             // Allocates memory to a block of code from .cod file
-            char* code = malloc(33152);            
+            char* code = malloc(33152); //sum 1 to 256 (worst case shannon fano) + 255 semicolons + 1 byte NULL + 1 extra byte for algorithm efficiency avoiding 256 compares           
             if (code) {
-                // Places it in the allocated string
+                
                 if (fscanf(f_cod,"@%33151[^@]", code) == 1) {   
                          
                     for (int k = 0, l = 0; code[l];) {
@@ -271,7 +321,7 @@ _modules_error create_tree (FILE* f_cod, unsigned long* block_sizes, long long i
                             l++;
                         }
                         // Allocates memory for the sf code of a symbol
-                        char* sf = malloc(257);
+                        char* sf = malloc(257); // 256 maximum + 1 NULL
                         if (sf) {           
                             int j;
                             for (j = 0; code[l] && (code[l] != ';'); ++j, ++l) 
@@ -280,7 +330,7 @@ _modules_error create_tree (FILE* f_cod, unsigned long* block_sizes, long long i
                             if (j != 0) {
                                 // Adds the code to the tree
                                 error = add_tree(decoder, sf, k);
-                                if (error != _SUCCESS) break;
+                                if (error) break;
                               
                             }   
                             free(sf);        
@@ -315,18 +365,21 @@ _modules_error create_tree (FILE* f_cod, unsigned long* block_sizes, long long i
 }
 
 
-char* shafa_block_decompressor (char* shafa, unsigned long shafa_size, unsigned long* blocks_size, long long index, BTree decoder) {
+char* shafa_block_decompressor (char* shafa, unsigned long block_size, BTree decoder) {
     
-    char* decomp = malloc(blocks_size[index]);
+    // String for the decompressed contents 
+    char* decomp = malloc(block_size+1);
     if (!decomp) return NULL;
     BTree root = decoder;
     uint8_t mask = 128; // 1000 0000 
-    long long l = 0;
+    unsigned long i = 0, l = 0;
     int bit;
-    for (int i = 0; i < shafa_size;) {
+
+    // Loop to check every byte, bit by bit
+    while (l < block_size) {
         
         bit = mask & shafa[i];
-        if (!bit) decoder = decoder->left;
+        if (!bit) decoder = decoder->left; // bit = 0
         else decoder = decoder->right;
         // Finds a leaf of the tree
         if (decoder && !(decoder->left) && !(decoder->right)) {
@@ -335,24 +388,27 @@ char* shafa_block_decompressor (char* shafa, unsigned long shafa_size, unsigned 
         }
         mask >>= 1; // 1000 0000 >> 0100 0000 >> ... >> 0000 0001 >> 0000 0000
         
+        // When mask = 0 it's time to move to the next byte
         if (!mask) {
             ++i;
             mask = 128;
         }
         
     }
+   
     decomp[l] = '\0';
     return decomp;
 }
 
 
-_modules_error shafa_decompress (char ** const path, BlocksSize * blocks_size) {
-
+_modules_error shafa_decompress (char ** const path, bool rle_decompression) 
+{
     _modules_error error = _SUCCESS;
-
+    int flag = 1; // Flag to know if the file to write on was closed or not
+    // Opening the files
     FILE* f_shafa = fopen(*path, "rb");
     if (f_shafa) {
-
+        
         char* path_cod = rm_ext(*path);
         if (path_cod) {
 
@@ -367,59 +423,58 @@ _modules_error shafa_decompress (char ** const path, BlocksSize * blocks_size) {
 
                         FILE* f_wrt = fopen(path_wrt, "wb");
                         if (f_wrt) {
-
-                            if (fscanf(f_shafa, "@%lld", &blocks_size->length) == 1) {
+                            // Reading header of shafa file
+                            long long length;
+                            if (fscanf(f_shafa, "@%lld", &length) == 1) {
 
                                 char mode;
-                                if (fscanf(f_cod, "@%c@%lld", &mode, &blocks_size->length)) {
+                                // Reading header of cod file
+                                if (fscanf(f_cod, "@%c@%lld", &mode, &length)) {
                                     
-                                    if ((mode == 'N') || (mode == 'R')) { // TROCAR O IF DE BAIXO COM O DE CIMA
-                                        
-                                        blocks_size->sizes = malloc(sizeof(int)*blocks_size->length);
-                                        if (blocks_size->sizes) {
+                                    if ((mode == 'N') || (mode == 'R')) { 
+                                        // Allocates memory to an array with the purpose of saving the sizes of each block
+                                        unsigned long* sizes = malloc(sizeof(int)*length);
+                                        if (sizes) {
                                        
-                                            for (long long i = 0; i < blocks_size->length; ++i) {
-
+                                            for (long long i = 0; i < length && !error; ++i) {
+                                                // Creates the binary tree with the paths to decode the symbols
                                                 BTree decoder;
-                                                error = create_tree(f_cod, blocks_size->sizes, i, &decoder);
+                                                error = create_tree(f_cod, sizes, i, &decoder);
 
-                                                if (error == _SUCCESS) {
+                                                if (!error) {
 
                                                     unsigned long sf_bsize;
                                                     if (fscanf(f_shafa, "@%lu@", &sf_bsize) == 1) {
-
+                                                        // Allocates memory to a buffer in which will be loaded one block of shafa code
                                                         char* shafa_code = malloc(sf_bsize);
                                                         if (shafa_code) {
 
                                                             if (fread(shafa_code, 1, sf_bsize, f_shafa) == sf_bsize) { 
-                                                                
-                                                                char* decomp = shafa_block_decompressor(shafa_code, sf_bsize, blocks_size->sizes , i , decoder);
+                                                                // Generates the block decoded to RLE/TXT
+                                                                char* decomp = shafa_block_decompressor(shafa_code, sizes[i], decoder);
 
                                                                 if (decomp) {
+                                                                   
+                                                                    if (fwrite(decomp, 1, sizes[i], f_wrt) != sizes[i]) {
 
-                                                                    if (fwrite(decomp, 1, blocks_size->sizes[i], f_wrt) != blocks_size->sizes[i]) {
                                                                         error = _FILE_STREAM_FAILED;
-                                                                        i = blocks_size->length;
+                                                                     
                                                                     }
+                                                                    
                                                                     free(decomp);
                                                                 }
                                                                 else {
                                                                     error = _LACK_OF_MEMORY;
-                                                                    i = blocks_size->length;
                                                                 }
                                                             }
                                                             else {
                                                                 error = _FILE_STREAM_FAILED;
-                                                                i = blocks_size->length;
                                                             }
-
-                                                               
 
                                                             free(shafa_code);
                                                         }
                                                         else {
                                                             error = _LACK_OF_MEMORY;
-                                                            i = blocks_size->length;
                                                         }
 
                                                     }
@@ -429,14 +484,24 @@ _modules_error shafa_decompress (char ** const path, BlocksSize * blocks_size) {
 
                                                 free_tree(decoder);
                                                 }
-                                                else {
-                                                    i = blocks_size->length;
-                                                }
+                                                
                                             }
+                                            // Executes the rle decompression, using the data read in the COD file (avoids having to read the FREQ file to get the same data)
+                                            if (!error && rle_decompression) {
+                                                BlocksSize BLOCKS_SIZE; 
+                                                BLOCKS_SIZE.sizes = sizes; 
+                                                BLOCKS_SIZE.length = length;
+                                                fclose(f_wrt); // Neccessary to close to be able to read the RLE file generated correctly in the rle decompression
+                                                flag = 0; // Says that the RLE file doesn't need to be closed further ahead (avoids a double free)
+                                                error = _rle_decompress(&path_wrt, BLOCKS_SIZE);
+                                                
+                                            }
+                                            free(sizes);
                                         }
                                         else {
                                             error = _LACK_OF_MEMORY;
                                         }
+
                                     }
                                     else {
                                         error = _FILE_UNRECOGNIZABLE;
@@ -451,14 +516,15 @@ _modules_error shafa_decompress (char ** const path, BlocksSize * blocks_size) {
                             else {
                                 error = _FILE_STREAM_FAILED;
                             }
-                            fclose(f_wrt);
 
+                            if (flag) fclose(f_wrt);
+                            
                         }
                         else {
                             error = _FILE_UNRECOGNIZABLE;
+                            
                         }
                         free(path_wrt);
-
                     }
                     else {
                         error = _LACK_OF_MEMORY;

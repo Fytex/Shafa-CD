@@ -18,7 +18,7 @@
 #define NUM_SYMBOLS 256
 #define MIN(a,b) ((a) < (b) ? a : b)
 
-void readBlock (char * codes_input, uint32_t frequencies[NUM_SYMBOLS]) 
+void read_Block (char * codes_input, uint32_t frequencies[NUM_SYMBOLS]) 
 {
     char * ptr = codes_input;
     uint32_t auxfreq;
@@ -219,6 +219,20 @@ _modules_error get_shafa_codes(const char * path)
 
                             }
                             fprintf(fd_codes, "@0");
+                            
+                            t = clock() - t;
+                             double time_taken = ((double) t)/CLOCKS_PER_SEC;
+                             double total_time = time_taken*1000;
+
+                            puts(
+                                 "Francisco Neves,a93202,MIEI/CD, 1-JAN-2021\n"
+                                 "Leonardo Freitas,a93281,MIEI/CD, 1-JAN-2021\n"
+                                 "Módule:T (Calculation of symbol codes)\n"
+                                );
+                            printf("Number of blocks: %lld\n", num_blocks);    
+                            printf("Size of blocks analyzed in the symbol file: %lu\n", block_size);
+                            printf("Module runtime (milliseconds): %f\n", total_time); 
+                            printf("Generated file %s\n", path_codes);
 
                             fclose(fd_codes);
                                                        
@@ -254,18 +268,3 @@ _modules_error get_shafa_codes(const char * path)
         error = _LACK_OF_MEMORY;    
 
     return error;
-    
-    t = clock() - t;
-    double time_taken = ((double) t)/CLOCKS_PER_SEC;
-    double total_time = time_taken*1000;
-
-    puts(
-        "Francisco Neves,a93202,MIEI/CD, 1-JAN-2021\n"
-        "Leonardo Freitas,a93281,MIEI/CD, 1-JAN-2021\n"
-        "Módule:T (Cálculo dos códigos dos Símbolos\n"
-    );
-    printf("Número de blocos: %lld\n", num_blocks);    
-    printf("Tamanho dos blocos analisados no ficheiro de símbolos: %lu\n", block_size);
-    printf("Tempo de execução do módulo (milissegundos): %f\n", total_time); 
-    printf("Ficheiro gerado: %s\n", path_codes);
-}

@@ -272,7 +272,7 @@ _modules_error shafa_compress(char ** const path)
 
                         if (fd_shafa) {
 
-                            block_codes = malloc(33151 + 1 + 1); //sum 1 to 256 (worst case shannon fano) + 255 semicolons + 1 byte NULL + 1 algorithm efficiency (exchange 2 * 256 + 2 compares for +1 byte in heap and +1 memory access)
+                            block_codes = malloc((33151 + 1 + 1) * sizeof(char)); //sum 1 to 256 (worst case shannon fano) + 255 semicolons + 1 byte NULL + 1 algorithm efficiency (exchange 2 * 256 + 2 compares for +1 byte in heap and +1 memory access)
 
                             if (block_codes) {
 
@@ -288,7 +288,7 @@ _modules_error shafa_compress(char ** const path)
                                         for (long long i = 0; i < num_blocks && !error; ++i) {
 
                                             if (fscanf(fd_codes,"@%lu@%33151[^@]", &block_size, block_codes) == 2) {
-                                                block_input = malloc(block_size);
+                                                block_input = malloc(block_size * sizeof(uint8_t));
 
                                                 if (block_input) {
                                                     if (fread(block_input, sizeof(uint8_t), block_size, fd_file) == block_size) {

@@ -18,8 +18,8 @@
 #define n_simb 256
 
 /**
-\brief Load's the rle file and saves it
- @param f_rle Pointer to the original/RLE file's path
+\brief Loads the rle file and saves it
+ @param f_rle Pointer to the original/RLE files path
  @param size_of_block Block size
  @param error Error status
  @returns Saved file content
@@ -275,7 +275,7 @@ void free_tree(BTree tree) {
 }
 
 /**
-\brief Add's a given code to the BTree
+\brief Adds a given code to the BTree
  @param decoder Tree with saved symbols to help in decoding
  @param *code Path to save the symbol in the correct leaf
  @param symbol character to be saved in the tree 

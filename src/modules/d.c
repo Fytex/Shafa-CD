@@ -261,7 +261,7 @@ typedef struct btree{
 } *BTree;
 
 /**
-\brief Free's all the memory used by a BTree
+\brief Frees all the memory used by a BTree
  @param tree Binary tree
 */
 void free_tree(BTree tree) {

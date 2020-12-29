@@ -76,7 +76,7 @@ void write_freq(int *freq, FILE* f_freq,  int block_num, int n_blocks) {
     }
 }
 
-_modules_error freq_rle_compress(char** const path, const bool force_rle, const bool force_freq, const int block_size)
+_modules_error freq_rle_compress(char** const path, const bool force_rle, const bool force_freq, const unsigned long block_size)
 {
     //int* freq;
     //float compression_ratio;
@@ -84,9 +84,9 @@ _modules_error freq_rle_compress(char** const path, const bool force_rle, const 
     int size_f, read, compresd, size_block_rle;
     long long n_blocks;
     bool compress_rle;
-    long *size_of_last_block;
+    long size_of_last_block;
     char *path_rle, *path_rle_freq, *path_freq; 
-    unsigned long *the_block_size;
+    unsigned long the_block_size;
     FILE *f, *f_rle, *f_rle_freq, *f_freq;
 
     compress_rle = true;
@@ -97,41 +97,41 @@ _modules_error freq_rle_compress(char** const path, const bool force_rle, const 
     //Opening txt file
     f = fopen(*path, "rb");
     if(f){
-        printf("ok f\n");
+        
         //Creating path to rle file
         path_rle = add_ext(*path, RLE_EXT);
         if(path_rle){
-            printf("ok path_rle\n");
+            
             //Opening rle file
             f_rle = fopen(path_rle, "wb");
             if(f_rle) {
-                printf("ok f_rle\n");
+                
                 //Creating path to freq file
                 path_rle_freq = add_ext(path_rle, FREQ_EXT);
                 if(path_rle_freq) {
-                    printf("ok path_rle_freq\n");
+                    
                     //Opening freq file
                     f_rle_freq = fopen(path_rle_freq, "wb");
                     if(f_rle_freq) {
-                        printf("ok f_rle_freq\n");
+                        
                         //Creating path to forced freq file
                         path_freq = add_ext(*path, FREQ_EXT);
                         if(path_freq) {
-                            printf("ok path_freq\n");
+                            
                             //Opening forced freq file
                             f_freq = fopen(path_freq, "wb");
                             if(f_freq) {
-                                printf("ok f_freq\n");
+                                
                                 n_blocks = fsize(f, *path, &the_block_size, &size_of_last_block);
                                 size_f = (n_blocks-1) * (int)the_block_size + (int)size_of_last_block; //Saves the size of the file
                                 if(size_f >= _1KiB){
-                                    printf("ok size_f\n");
+                                    
                                     buffer = malloc(size_f); //Allocates memory for all the characters in the file
                                     if(buffer){
-                                        printf("ok buffer\n");
+                                        
                                         read = fread(buffer, 1, size_f, f); //Loads the content of the file into the buffer
                                         if(read == size_f){
-                                            printf("ok read\n");
+                                            
                                             // divides and compresses the buffer into blocks and writes it into the rle file
                                             compresd = (int)the_block_size;
                                             size_block_rle = 0;
@@ -141,7 +141,7 @@ _modules_error freq_rle_compress(char** const path, const bool force_rle, const 
                                                 }
                                                 block = malloc(compresd * 3); //creates string with enough memory to compress the block
                                                 if(block) {
-                                                    printf("ok block\n");
+                                                    
                                                     size_block_rle = block_compression(buffer+s, block, compresd, size_f);
                                                     float compression_ratio = (float)(compresd - size_block_rle)/compresd; //Calculates the compression ratio
                                                     if(compression_ratio < 0.05 && !force_rle) compress_rle = false;
@@ -155,35 +155,35 @@ _modules_error freq_rle_compress(char** const path, const bool force_rle, const 
                                                             
                                                     int *freq = malloc(sizeof(int)*256); //Allocates memory for all the symbol's frequencies
                                                     if(freq) {
-                                                        printf("ok freq\n");
+                                                        
                                                         if(compress_rle) {
                                                             int res = fwrite(block, 1, size_block_rle, f_rle); //Writes the first block of frquencies in the freq file
                                                             if(res == size_block_rle){
                                                                 make_freq(block, freq, size_block_rle); //Generates an array of frequencies of the block
-                                                                printf("ok make_freq\n");
+                                                                
                                                                 fprintf(f_rle_freq, "@%d@", size_block_rle);
                                                                 write_freq(freq, f_rle_freq, block_num, n_blocks);
-                                                                printf("ok writefreq\n");
+                                                                
                                                             }
                                                             else error = _FILE_STREAM_FAILED;
                                                         }
                                                         if(!compress_rle || force_freq) {
-                                                            printf("ok if\n");
+                                                            
                                                             make_freq(buffer+s, freq, compresd); //Generates an array of frequencies of the block
-                                                            printf("ok make2\n");
+                                                            
                                                             fprintf(f_freq, "@%d@", compresd);
                                                             write_freq(freq, f_freq, block_num, n_blocks);
-                                                            printf("ok write2\n");
+                                                            
                                                         }
                                                     free(freq);
-                                                    printf("ok freefreq\n");
+                                                    
                                                     }
                                                     else error = _LACK_OF_MEMORY;
 
                                                 s+=compresd;
 
                                                 free(block); 
-                                                printf("ok freeblock\n");
+                                                
                                                 }
                                                 else error = _LACK_OF_MEMORY; 
                                             }
@@ -229,7 +229,3 @@ _modules_error freq_rle_compress(char** const path, const bool force_rle, const 
 
 
 
-_modules_error get_frequencies(char * const path, const int block_size)
-{
-    return true;
-}

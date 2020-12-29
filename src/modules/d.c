@@ -2,7 +2,7 @@
  *
  *  Author(s): Alexandre Martins, Beatriz Rodrigues
  *  Created Date: 3 Dec 2020
- *  Updated Date: 28 Dec 2020
+ *  Updated Date: 29 Dec 2020
  *
  **************************************************/
 
@@ -17,7 +17,13 @@
 
 #define n_simb 256
 
-
+/**
+\brief Load's the rle file and saves it
+ @param f_rle Pointer to the original/RLE file's path
+ @param size_of_block Block size
+ @param error Error status
+ @returns Saved file content
+*/
 char* load_rle (FILE* f_rle, unsigned long size_of_block, _modules_error* error) 
 {
     // Memory allocation for the buffer that will contain the contents of one block of symbols
@@ -45,7 +51,14 @@ char* load_rle (FILE* f_rle, unsigned long size_of_block, _modules_error* error)
 }
 
 
-
+/**
+\brief Allocates space to the descompressed file
+ @param buffer Saved file content
+ @param size_of_block Block size
+ @param size_string String size
+ @param error Error status
+ @returns String with space allocated to save the descompressed file
+*/
 char* rle_block_decompressor (char* buffer, unsigned long block_size, long long* size_string, _modules_error* error) 
 {
     // Assumption of the smallest size possible for the decompressed file
@@ -239,12 +252,18 @@ _modules_error _rle_decompress (char ** const path, BlocksSize blocks_size)
     return error;
 }
 
+/**
+\brief Binary tree that will contain all of the symbols codes needed to the descompressed file
+*/
 typedef struct btree{
     char symbol;
     struct btree *left,*right;
 } *BTree;
 
-
+/**
+\brief Free's all the memory used by a BTree
+ @param tree Binary tree
+*/
 void free_tree(BTree tree) {
 
     if (tree) {
@@ -255,7 +274,13 @@ void free_tree(BTree tree) {
 
 }
 
-
+/**
+\brief Add's a given code to the BTree
+ @param decoder Tree with saved symbols to help in decoding
+ @param *code Path to save the symbol in the correct leaf
+ @param symbol character to be saved in the tree 
+ @returns Error status
+*/
 _modules_error add_tree(BTree* decoder, char *code, char symbol) 
 {
     int i;
@@ -278,6 +303,14 @@ _modules_error add_tree(BTree* decoder, char *code, char symbol)
     return _SUCCESS;
 }
 
+/**
+\brief Allocates memory to a binary tree that contains symbols codes
+ @param f_cod File .cod
+ @param block_sizes Block sizes
+ @param index Index to the block that we are currently on
+ @param decoder Pointer to the binary tree
+ @returns Error status
+*/
 _modules_error create_tree (FILE* f_cod, unsigned long* block_sizes, long long index, BTree* decoder)
 {
     _modules_error error = _SUCCESS;
@@ -350,7 +383,13 @@ _modules_error create_tree (FILE* f_cod, unsigned long* block_sizes, long long i
     return error;
 }
 
-
+/**
+\brief Allocates memory to the descompressed file
+ @param shafa Content of the file to be descompressed
+ @param block_size Block size
+ @param decoder Binary tree with the symbols codes
+ @returns Error status
+*/
 char* shafa_block_decompressor (char* shafa, unsigned long block_size, BTree decoder) {
     
     // String for the decompressed contents 

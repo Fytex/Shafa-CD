@@ -128,6 +128,10 @@ static int compress_to_buffer(FILE * const fd_file, FILE * const fd_shafa, const
             cur_char = next_char;
             next_char = *block_codes++;
         }
+        else if (syb_idx < NUM_SYMBOLS - 1) { // if end of codes' block but still hasn't iterated over 256 symbols
+            free(table);
+            return _FILE_UNRECOGNIZABLE;
+        }
 
     }
    
@@ -268,7 +272,7 @@ _modules_error shafa_compress(char ** const path)
 
                         if (fd_shafa) {
 
-                            block_codes = malloc(33151 + 1); //sum 1 to 256 (worst case shannon fano) + 255 semicolons + 1 byte NULL
+                            block_codes = malloc(33151 + 1 + 1); //sum 1 to 256 (worst case shannon fano) + 255 semicolons + 1 byte NULL + 1 algorithm efficiency (exchange 2 * 256 + 2 compares for +1 byte in heap and +1 memory access)
 
                             if (block_codes) {
 

@@ -22,7 +22,7 @@
 
 
 typedef struct {
-    int block_size;
+    unsigned long block_size;
     bool module_f;
     bool module_t;
     bool module_c;

@@ -1,3 +1,12 @@
+/************************************************
+ *
+ *  Author(s): Pedro Tavares, Tiago Costa
+ *  Created Date: 7 Dec 2020
+ *  Updated Date: 29 Dec 2020
+ *
+ ***********************************************/
+
+#include <time.h>
 #include <stdio.h>
 #include <stdint.h>
 #include <stdlib.h>
@@ -17,11 +26,11 @@ typedef struct {
 } CodesIndex;
 
 
-static uint8_t * binary_coding(CodesIndex (* const table)[NUM_SYMBOLS], const uint8_t * restrict block_input, const unsigned long block_size, unsigned long * const new_block_size)
+static uint8_t * binary_coding(CodesIndex * const table, const uint8_t * restrict block_input, const unsigned long block_size, unsigned long * const new_block_size)
 {
     uint8_t * output;
     CodesIndex * symbol;
-    int offset = 0, num_bytes_code;
+    int next = 0, num_bytes_code;
     uint8_t * code;
 
     uint8_t * const block_output = calloc(block_size, sizeof(uint8_t));
@@ -32,7 +41,8 @@ static uint8_t * binary_coding(CodesIndex (* const table)[NUM_SYMBOLS], const ui
     output = block_output;
     
     for (unsigned long idx = 0; idx < block_size; ++idx) {
-        symbol = &table[offset][*block_input++];
+        //printf("%d + %d\n", next, *block_input);
+        symbol = &table[next + *block_input++];
 
         num_bytes_code = symbol->index;
         code = symbol->code;
@@ -42,7 +52,7 @@ static uint8_t * binary_coding(CodesIndex (* const table)[NUM_SYMBOLS], const ui
         
         *output |= *code;
 
-        offset = symbol->next;
+        next = symbol->next;
     }
 
     *new_block_size = output - block_output + 1;
@@ -51,7 +61,7 @@ static uint8_t * binary_coding(CodesIndex (* const table)[NUM_SYMBOLS], const ui
 }
 
 
-static int compress_to_file(FILE * const fd_file, FILE * const fd_shafa, const char * block_codes, const uint8_t * const block_input, const unsigned long block_size, uint8_t ** const block_output, unsigned long * const new_block_size)
+static int compress_to_buffer(FILE * const fd_file, FILE * const fd_shafa, const char * block_codes, const uint8_t * const block_input, const unsigned long block_size, uint8_t ** const block_output, unsigned long * const new_block_size)
 {
     CodesIndex header_symbol_row, *symbol_row;
     char cur_char, next_char;
@@ -59,7 +69,7 @@ static int compress_to_file(FILE * const fd_file, FILE * const fd_shafa, const c
     uint8_t byte, next_byte_prefix = 0, mask;
 
     CodesIndex (* table)[NUM_SYMBOLS] = calloc(1, sizeof(CodesIndex[NUM_OFFSETS][NUM_SYMBOLS]));
-
+ 
     if (!table)
         return _LACK_OF_MEMORY;
 
@@ -101,7 +111,7 @@ static int compress_to_file(FILE * const fd_file, FILE * const fd_shafa, const c
                     else
                         byte <<= 1;
                 }
-
+                
                 cur_char = next_char;
                 next_char = *block_codes++;
 
@@ -109,18 +119,20 @@ static int compress_to_file(FILE * const fd_file, FILE * const fd_shafa, const c
             table[0][syb_idx].code[code_idx] = byte;
         }
 
-        cur_char = next_char;
-        next_char = *block_codes++;
-
         if (code_idx > 0) {
-            table[0][syb_idx].next = (bit_idx != 8) ? (bit_idx + 1) : 0;
+            table[0][syb_idx].next = (bit_idx != 8) ? (bit_idx + 1) * NUM_SYMBOLS : 0;
             table[0][syb_idx].index = code_idx - (bit_idx < 8 ? 1 : 0);
+        }
+
+        if (cur_char != '\0') {
+            cur_char = next_char;
+            next_char = *block_codes++;
         }
 
     }
    
 
-    if (next_char != '\0') { // Check whether file is actually correct (Not required but it is an assert)
+    if (cur_char != '\0') { // Check whether file is actually correct (Not required but it is an assert)
         free(table);
         return _FILE_UNRECOGNIZABLE;
     }
@@ -136,30 +148,33 @@ static int compress_to_file(FILE * const fd_file, FILE * const fd_shafa, const c
 
         header_symbol_row = table[0][idx];
 
-        for (int offset = 1, bit_offset; offset < NUM_OFFSETS; ++offset) {
+        if (header_symbol_row.next || header_symbol_row.index) {
 
-            symbol_row = &table[offset][idx];
+            for (int offset = 1, bit_offset; offset < NUM_OFFSETS; ++offset) {
 
-            bit_offset = header_symbol_row.next + offset;
-            new_index = header_symbol_row.index + (bit_offset < 8 ? 0: 1);
-            symbol_row->index = new_index;
-            symbol_row->next = (bit_offset < 8) ? bit_offset : bit_offset - 8;
+                symbol_row = &table[offset][idx];
 
-            next_byte_prefix = 0;
-            for (int code_idx = 0; code_idx < new_index; ++code_idx) {
+                bit_offset = (header_symbol_row.next / NUM_SYMBOLS) + offset;
+                new_index = header_symbol_row.index + (bit_offset < 8 ? 0: 1);
+                symbol_row->index = new_index;
+                symbol_row->next = ((bit_offset < 8) ? bit_offset : bit_offset - 8) * NUM_SYMBOLS;
 
-                byte = header_symbol_row.code[code_idx];
-                symbol_row->code[code_idx] = (byte >> offset) | (next_byte_prefix << (8 - offset));
+                next_byte_prefix = 0;
+                for (code_idx = 0; code_idx < new_index; ++code_idx) {
 
-                mask = (1 << offset) - 1;
-                next_byte_prefix = byte & mask;
+                    byte = header_symbol_row.code[code_idx];
+                    symbol_row->code[code_idx] = (byte >> offset) | (next_byte_prefix << (8 - offset));
 
-            }
+                    mask = (1 << offset) - 1;
+                    next_byte_prefix = byte & mask;
 
-            // This will only execute if next != 0 (which is the same as bit_offset != 8) Because this iteration is unnecessary
-            if (bit_offset != 8) {
-                byte = header_symbol_row.code[new_index];
-                symbol_row->code[new_index] = (byte >> offset) | (next_byte_prefix << (8 - offset));
+                }
+
+                // This will only execute if next != 0 (which is the same as bit_offset != 8) Because this iteration is unnecessary
+                if (bit_offset != 8) {
+                    byte = header_symbol_row.code[new_index];
+                    symbol_row->code[new_index] = (byte >> offset) | (next_byte_prefix << (8 - offset));
+                }
             }
         }
     }
@@ -172,27 +187,46 @@ static int compress_to_file(FILE * const fd_file, FILE * const fd_shafa, const c
     */
 
     
-    *block_output = binary_coding(table, block_input, block_size, new_block_size);
+    *block_output = binary_coding((CodesIndex *) table, block_input, block_size, new_block_size);
+
+    free(table);
 
     if (!*block_output)
         return _LACK_OF_MEMORY;
 
-    /* Print output to stdio
-
-    printf("%lu\n", *new_block_size);
-    for (unsigned long i = 0; i < *new_block_size; i++)
-        printf("%02X", *block_output[i]);
-    puts("");
-    
-    */
-
     return _SUCCESS;
 }
+
+static inline void print_summary(const long long num_blocks, const unsigned long * const blocks_input_size, const unsigned long * const blocks_output_size, const double total_time, const char * const path)
+{
+    unsigned long block_input_size, block_output_size;
+
+    printf(
+        "Pedro Tavares, a93227, MIEI/CD, 1-JAN-2021\n"
+        "Tiago Costa, a93322, MIEI/CD, 1-JAN-2021\n"
+        "Module: C (Symbol codes' codification)\n"
+        "Number of blocks: %lld\n", num_blocks
+    );
+    for (long long i = 0; i < num_blocks; ++i) {
+        block_input_size = blocks_input_size[i];
+        block_output_size = blocks_output_size[i];
+        printf("Size before/after & compression rate (Block %lld): %lu/%lu -> %d%%\n", i, block_input_size, block_output_size, (int) (((float) block_output_size / block_input_size) * 100));
+    }
+    
+    printf(
+        "Module runtime (milliseconds): %f\n"
+        "Generated file %s\n",
+        total_time, path
+    );
+}
+
 
 
 _modules_error shafa_compress(char ** const path)
 {
     FILE * fd_file, * fd_codes, * fd_shafa;
+    clock_t t;
+    float total_time;
     char * path_file = *path;
     char * path_codes;
     char * path_shafa;
@@ -202,8 +236,9 @@ _modules_error shafa_compress(char ** const path)
     unsigned long block_size, new_block_size;
     int error = _SUCCESS;
     uint8_t * block_input, * block_output = NULL;
+    unsigned long * blocks_size = NULL, * blocks_input_size, * blocks_output_size;
 
-    
+    t = clock();
     
     // Create Codes's path string and Open Codes's handle
 
@@ -233,45 +268,57 @@ _modules_error shafa_compress(char ** const path)
 
                         if (fd_shafa) {
 
-                            block_codes = malloc(33153); //sum 1 to 256 (worst case shannon fano) + 255 semicolons + 1 byte NULL + 1 extra byte for algorithm efficiency avoiding 256 compares
+                            block_codes = malloc(33151 + 1); //sum 1 to 256 (worst case shannon fano) + 255 semicolons + 1 byte NULL
 
-                           if (block_codes) {
+                            if (block_codes) {
 
                                 if (fprintf(fd_shafa, "@%lld", num_blocks) >= 2) {
 
-                                    for (long long i = 0; i < num_blocks && !error; ++i) {
+                                    blocks_size = malloc(2 * num_blocks * sizeof(unsigned long));
 
-                                        if (fscanf(fd_codes,"@%lu@%33151[^@]", &block_size, block_codes) == 2) {
-                                            block_input = malloc(block_size);
+                                    if (blocks_size) {
+                                        
+                                        blocks_input_size = blocks_size;
+                                        blocks_output_size = blocks_input_size + num_blocks; // Acts as a "virtual" array
 
-                                            if (block_input) {
-                                                if (fread(block_input, sizeof(uint8_t), block_size, fd_file) == block_size) {
-                                                    error = compress_to_file(fd_file, fd_shafa, block_codes, block_input, block_size, &block_output, &new_block_size); // use semaphore (mutex) [only when multithreading]
-                                                    
-                                                    if (!error) {
-                                                        if (fprintf(fd_shafa, "@%lu", new_block_size) >= 2) {
+                                        for (long long i = 0; i < num_blocks && !error; ++i) {
 
-                                                            if (fwrite(block_output, sizeof(uint8_t), new_block_size, fd_shafa) != new_block_size)
-                                                                error = _FILE_STREAM_FAILED;
+                                            if (fscanf(fd_codes,"@%lu@%33151[^@]", &block_size, block_codes) == 2) {
+                                                block_input = malloc(block_size);
 
+                                                if (block_input) {
+                                                    if (fread(block_input, sizeof(uint8_t), block_size, fd_file) == block_size) {
+                                                        error = compress_to_buffer(fd_file, fd_shafa, block_codes, block_input, block_size, &block_output, &new_block_size); // use semaphore (mutex) [only when multithreading]
+
+                                                        if (!error) {
+                                                            if (fprintf(fd_shafa, "@%lu@", new_block_size) >= 2) {
+
+                                                                if (fwrite(block_output, sizeof(uint8_t), new_block_size, fd_shafa) != new_block_size)
+                                                                    error = _FILE_STREAM_FAILED;
+                                                                else {
+                                                                    blocks_input_size[i] = block_size;
+                                                                    blocks_output_size[i] = new_block_size;
+                                                                }
+
+                                                            }
+
+                                                            free(block_output);
                                                         }
-
-                                                        free(block_output);
                                                     }
                                                     else
-                                                        error = _LACK_OF_MEMORY;
+                                                        error = _FILE_STREAM_FAILED;
+                                                    
+                                                    free(block_input);
                                                 }
                                                 else
-                                                    error = _FILE_STREAM_FAILED;
-                                                
-                                                free(block_input);
+                                                    error = _LACK_OF_MEMORY;
                                             }
                                             else
-                                                error = _LACK_OF_MEMORY;
+                                                error = _FILE_STREAM_FAILED;
                                         }
-                                        else
-                                            error = _FILE_STREAM_FAILED;
                                     }
+                                    else
+                                        error = _LACK_OF_MEMORY;
                                 }
                                 else
                                     error = _FILE_STREAM_FAILED;
@@ -280,8 +327,6 @@ _modules_error shafa_compress(char ** const path)
                            }
 
                             fclose(fd_shafa);
-                            free(path_file);
-                            *path = path_shafa;
                         }
                         else {
                             free(path_shafa);
@@ -308,6 +353,19 @@ _modules_error shafa_compress(char ** const path)
     }
     else
         error = _LACK_OF_MEMORY;
+    
+    if (!error) {
+        *path = path_shafa;
+        free(path_file);
+
+        t = clock() - t;
+        total_time = (((double) t) / CLOCKS_PER_SEC) * 1000;
+
+        print_summary(num_blocks, blocks_input_size, blocks_output_size, total_time, path_shafa);
+    }
+
+    if (blocks_size)
+        free(blocks_size);
 
     return error;
 }

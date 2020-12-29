@@ -13,6 +13,6 @@
  @param block_size Size of each block
  @returns Error status
 */
-_modules_error freq_rle_compress(char ** path, bool force_rle, bool force_freq, int block_size);
+_modules_error freq_rle_compress(char ** path, bool force_rle, bool force_freq, unsigned long block_size);
 
 #endif //MODULE_F_H

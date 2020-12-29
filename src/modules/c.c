@@ -41,7 +41,6 @@ static uint8_t * binary_coding(CodesIndex * const table, const uint8_t * restric
     output = block_output;
     
     for (unsigned long idx = 0; idx < block_size; ++idx) {
-        //printf("%d + %d\n", next, *block_input);
         symbol = &table[next + *block_input++];
 
         num_bytes_code = symbol->index;
@@ -327,15 +326,16 @@ _modules_error shafa_compress(char ** const path)
                                 else
                                     error = _FILE_STREAM_FAILED;
                             
-                            free(block_codes);
+                                free(block_codes);
                            }
 
                             fclose(fd_shafa);
                         }
-                        else {
-                            free(path_shafa);
+                        else
                             error = _FILE_INACCESSIBLE;
-                        }
+
+                        if (error)
+                            free(path_shafa);
                     }
                     else 
                         error = _LACK_OF_MEMORY;

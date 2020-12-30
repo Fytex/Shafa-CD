@@ -147,18 +147,28 @@ static int not_Null (unsigned long frequencies[NUM_SYMBOLS])
 }
 
 
-static inline void print_summary(const long long num_blocks, const unsigned long block_size, const double total_time, const char * const path)
+static inline void print_summary(const long long num_blocks, const unsigned long * sizes, const double total_time, const char * const path)
 {
+    long long i;
+
     printf(
             "Francisco Neves,a93202,MIEI/CD, 1-JAN-2021\n"
             "Leonardo Freitas,a93281,MIEI/CD, 1-JAN-2021\n"
             "Módule:T (Calculation of symbol codes)\n"
-            "Number of blocks: %lld\n"  
-            "Size of blocks analyzed in the symbol file: %lu\n"
+            "Number of blocks: %lld\n"
+            "Size of blocks analyzed in the symbol file:" ,
+            num_blocks 
+    );
+    for (i = 0; i < num_blocks - 1; ++i) {
+        printf("%lu/", sizes[i]);
+    }
+    printf("%lu bytes\n", sizes[i]);
+
+    printf(
             "Module runtime (milliseconds): %f\n"
             "Generated file %s\n" ,
-            num_blocks, block_size, total_time, path
-        );
+            total_time, path
+    );       
 }
 
 
@@ -177,7 +187,7 @@ _modules_error get_shafa_codes(const char * path)
     int freq_notnull, iter;
     int error = _SUCCESS;
     int positions[NUM_SYMBOLS];
-    unsigned long frequencies[NUM_SYMBOLS];
+    unsigned long frequencies[NUM_SYMBOLS], * sizes = NULL ;
     double total_time;
     char (* codes)[NUM_SYMBOLS];
 
@@ -191,9 +201,14 @@ _modules_error get_shafa_codes(const char * path)
 
         if (fd_freq) {
 
-            if (fscanf(fd_freq, "@%c@%lld", &mode, &num_blocks) == 2) {
+            if (fscanf(fd_freq, "@%c@%lld", &mode, &num_blocks) == 2) {                
 
                 if (mode == 'R' || mode == 'N') {
+
+                    sizes = malloc (num_blocks * sizeof(unsigned long));
+
+                    if (!sizes)
+                        return _LACK_OF_MEMORY;                         
 
                     path_codes = add_ext(path, CODES_EXT);
 
@@ -203,18 +218,20 @@ _modules_error get_shafa_codes(const char * path)
 
                         if (fd_codes) {
 
-                            fprintf(fd_codes, "@%c@%lld", mode, num_blocks);
+                            fprintf(fd_codes, "@%c@%lld", mode, num_blocks);                               
 
                             for (long long i = 0; i < num_blocks && !error; ++i) {
 
                                 codes = calloc(1, sizeof(char[NUM_SYMBOLS][NUM_SYMBOLS]));
-
+                                
                                 if (codes) {
 
                                     memset(frequencies, 0, NUM_SYMBOLS * 4);
                                     for (int j = 0; j < NUM_SYMBOLS; ++j) positions[j] = j;
 
                                     fscanf(fd_freq, "@%lu", &block_size);
+                                    sizes[i] = block_size;
+                                    
                                     block_input = malloc(9 * NUM_SYMBOLS + (NUM_SYMBOLS - 1) + 1); // 9 (max digits for frequency) + 256 (symbols) + 255 (';') + 1 (NULL terminator)
 
                                     if (block_input) {
@@ -282,7 +299,7 @@ _modules_error get_shafa_codes(const char * path)
         t = clock() - t;
         total_time = (((double) t) / CLOCKS_PER_SEC) * 1000;
 
-        print_summary(num_blocks, block_size, total_time, path_codes);
+        print_summary(num_blocks, sizes, total_time, path_codes);
     }              
 
     return error;

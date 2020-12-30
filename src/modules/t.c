@@ -2,7 +2,7 @@
  *
  *  Author(s): Francisco Neves, Leonardo Freitas
  *  Created Date: 3 Dec 2020
- *  Updated Date: 28 Dec 2020
+ *  Updated Date: 30 Dec 2020
  *
  ***********************************************/
 
@@ -154,9 +154,9 @@ static inline void print_summary(const long long num_blocks, const unsigned long
     printf(
             "Francisco Neves,a93202,MIEI/CD, 1-JAN-2021\n"
             "Leonardo Freitas,a93281,MIEI/CD, 1-JAN-2021\n"
-            "Módule:T (Calculation of symbol codes)\n"
+            "Module:T (Calculation of symbol codes)\n"
             "Number of blocks: %lld\n"
-            "Size of blocks analyzed in the symbol file:" ,
+            "Size of blocks analyzed in the symbol file: " ,
             num_blocks 
     );
     for (i = 0; i < num_blocks - 1; ++i) {
@@ -242,12 +242,7 @@ _modules_error get_shafa_codes(const char * path)
 
                                         freq_notnull = not_Null(frequencies);
 
-                                        printf("NOT NULL %d\n",freq_notnull);
-
                                         sf_codes(frequencies, codes, 0, freq_notnull);
-
-                                         for ( int i = 0; i < NUM_SYMBOLS;i++)
-                                            printf("Codes %s\n",codes[positions[i]]);
 
                                         fprintf(fd_codes, "@%lu@", block_size);
                                         for (iter = 0; iter < NUM_SYMBOLS - 1; ++iter) fprintf(fd_codes, "%s;", codes[positions[iter]]);

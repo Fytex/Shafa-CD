@@ -174,7 +174,7 @@ _modules_error get_shafa_codes(const char * path)
     char mode;
     long long num_blocks = 0;
     unsigned long block_size = 0;
-    int freq_notnull;
+    int freq_notnull, iter;
     int error = _SUCCESS;
     int positions[NUM_SYMBOLS];
     unsigned long frequencies[NUM_SYMBOLS];
@@ -225,11 +225,17 @@ _modules_error get_shafa_codes(const char * path)
 
                                         freq_notnull = not_Null(frequencies);
 
+                                        printf("NOT NULL %d\n",freq_notnull);
+
                                         sf_codes(frequencies, codes, 0, freq_notnull);
 
+                                         for ( int i = 0; i < NUM_SYMBOLS;i++)
+                                            printf("Codes %s\n",codes[positions[i]]);
+
                                         fprintf(fd_codes, "@%lu@", block_size);
-                                        for (int i = 0; i < NUM_SYMBOLS - 1; ++i) fprintf(fd_codes, "%s;", codes[positions[i]]);
-                                        fprintf(fd_codes, "%s", codes[positions[i]]);
+                                        for (iter = 0; iter < NUM_SYMBOLS - 1; ++iter) fprintf(fd_codes, "%s;", codes[positions[iter]]);
+                                        
+                                        fprintf(fd_codes, "%s", codes[positions[iter]]);
 
                                         free(block_input);
                                     }

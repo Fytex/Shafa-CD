@@ -46,7 +46,7 @@ static uint8_t * binary_coding(CodesIndex * const table, const uint8_t * restric
         num_bytes_code = symbol->index;
         code = symbol->code;
 
-        for (int i = 0; i < num_bytes_code; ++i)
+        for ( ; num_bytes_code > 0; --num_bytes_code)
             *output++ |= *code++;
         
         *output |= *code;

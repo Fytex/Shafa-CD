@@ -221,6 +221,7 @@ _modules_error _rle_decompress (char ** const path, BlocksSize* blocks_size, Blo
                             else {
                                 error = _FILE_STREAM_FAILED;
                             }
+                            fclose(f_freq);
                         }
                         else {
                             error = _FILE_INACCESSIBLE;
@@ -546,19 +547,20 @@ _modules_error shafa_decompress (char ** const path, bool rle_decompression)
                                         sizes = malloc(sizeof(unsigned long)*length);
                                         
                                         if (sizes) {
-                                       
-                                            for (long long i = 0; i < length && !error; ++i) {
+                                            
+                                            sf_sizes = malloc(sizeof(unsigned long)*length);
+                                            if (sf_sizes) {
+                                                
+                                                for (long long i = 0; i < length && !error; ++i) {
 
-                                                // Creates the binary tree with the paths to decode the symbols
-                                                error = create_tree(f_cod, sizes, i, &decoder);
+                                                    // Creates the binary tree with the paths to decode the symbols
+                                                    error = create_tree(f_cod, sizes, i, &decoder);
 
-                                                if (!error) {
-                                                    // Allocates memory to an array with the purpose of saving the sizes of each shafa block
-                                                    sf_sizes = malloc(sizeof(unsigned long)*length);
+                                                    if (!error) {
 
-                                                    if (sf_sizes) {
-
+                                                        // Allocates memory to an array with the purpose of saving the sizes of each shafa block
                                                         if (fscanf(f_shafa, "@%lu@", &sf_bsize) == 1) {
+
                                                             // Allocates memory to a buffer in which will be loaded one block of shafa code
                                                             sf_sizes[i] = sf_bsize; 
                                                             shafa_code = malloc(sf_bsize);
@@ -567,15 +569,11 @@ _modules_error shafa_decompress (char ** const path, bool rle_decompression)
                                                                 if (fread(shafa_code, 1, sf_bsize, f_shafa) == sf_bsize) { 
                                                                     // Generates the block decoded to RLE/TXT
                                                                     decomp = shafa_block_decompressor(shafa_code, sizes[i], decoder);
-
                                                                     if (decomp) {
                                                                     
                                                                         if (fwrite(decomp, 1, sizes[i], f_wrt) != sizes[i]) {
-
                                                                             error = _FILE_STREAM_FAILED;
-
                                                                         }
-
                                                                         free(decomp);
                                                                     }
                                                                     else {
@@ -585,27 +583,25 @@ _modules_error shafa_decompress (char ** const path, bool rle_decompression)
                                                                 else {
                                                                     error = _FILE_STREAM_FAILED;
                                                                 }
-
                                                                 free(shafa_code);
                                                             }
                                                             else {
                                                                 error = _LACK_OF_MEMORY;
                                                             }
-
                                                         }
                                                         else {
                                                             error = _FILE_STREAM_FAILED;
                                                         }
-                                                        
-                                                    }
-                                                    else {
-                                                        error = _LACK_OF_MEMORY;
-                                                    }
 
-                                                free_tree(decoder);
-                                                decoder = NULL;
+                                                        
+                                                    free_tree(decoder);
+                                                    decoder = NULL;
+                                                    }
                                                 }
-                                                
+                                            
+                                            }
+                                            else {
+                                                error = _LACK_OF_MEMORY;
                                             }
                                             // Executes the rle decompression, using the data read in the COD file (avoids having to read the FREQ file to get the same data)
                                             if (!error && rle_decompression) {
@@ -626,21 +622,24 @@ _modules_error shafa_decompress (char ** const path, bool rle_decompression)
                                             if (!error && (!rle_decompression || mode == 'N')) {
 
                                                 print_summary(total_time, sf_sizes, sizes, length, path_wrt);
-
+                                                
                                             }
                                             else if (!error && rle_decompression) {
                                                 
                                                 final_path = rm_ext(path_wrt);
                                                 
-                                                if (final_path) 
+                                                if (final_path) {
                                                     print_summary(total_time, blocks_size.sizes, final_sizes.sizes, length, final_path); 
+                                                    free(final_path);
+                                                    free(blocks_size.sizes);
+                                                    free(final_sizes.sizes);
+                                                }
                                                 else 
                                                     error = _LACK_OF_MEMORY;
                                             }
 
                                             free(sizes);
                                             free(sf_sizes);
-
                                         }
                                         else {
                                             error = _LACK_OF_MEMORY;

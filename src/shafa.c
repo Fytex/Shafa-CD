@@ -220,7 +220,7 @@ _modules_error execute_modules(Options options, char ** const ptr_file) // bette
             }
         }
         
-        if (!decompressed && (options.d_rle || !options.d_shaf) { // Trigger: NULL | -m d | -m d -d r (Won't execute this statement if had already been decompressed) 
+        if (!decompressed && (options.d_rle || !options.d_shaf)) { // Trigger: NULL | -m d | -m d -d r (Won't execute this statement if had already been decompressed) 
 
             if (!check_ext(*ptr_file, RLE_EXT)) { 
                 fprintf(stderr, "Module d: Wrong extension... Should end in %s\n", RLE_EXT);

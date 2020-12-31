@@ -18,16 +18,41 @@
 
 #define n_simb 256
 
+/**
+\brief Struct with the types of decoding possible
+*/
+typedef enum 
+{
+    _RLE,
+    _SHAFA,
+    _SHAFA_RLE,
 
-static void print_summary (double time, unsigned long * decomp_sizes, unsigned long * new_sizes, long long length, char* new_path) {
+} Algorithm;
+
+
+/**
+\brief Prints the results of the program execution
+ @param time Time that the program took to execute
+ @param decomp_sizes Block sizes previous to the decompression
+ @param new_sizes Block sizes after the decompression
+ @param length Number of blocks
+ @param new_path The path to the generated file
+ @param algo The type of decoding that occured
+*/
+static void print_summary (double time, unsigned long * decomp_sizes, unsigned long * new_sizes, long long length, char* new_path, Algorithm algo) {
 
     printf(
         "Alexandre Martins, a93242, MIEI/CD, 1-JAN-2021\n"
         "Beatriz Rodrigues, a93230, MIEI/CD, 1-JAN-2021\n"
-        "Module: D (Shafa decoding)\n"
-        "Number of blocks: %lld\n",
-        length
     );
+
+    if (algo == _RLE) 
+        printf("Module: D (RLE decoding)\n");
+    else if (algo == _SHAFA) 
+        printf("Module: D (SHAFA decoding)\n");
+    else 
+        printf("Module: D (SHAFA & RLE decoding)\n");
+
     for (long long i = 0; i < length; ++i) 
         printf("Size before/after generating file (block %lld): %lu/%lu\n", i + 1, decomp_sizes[i], new_sizes[i]);
     printf(
@@ -319,7 +344,7 @@ _modules_error rle_decompress(char ** path)
 
         if (path_wrt) {
 
-            print_summary(total_time, before.sizes, after.sizes, before.length, path_wrt);
+            print_summary(total_time, before.sizes, after.sizes, before.length, path_wrt, _RLE);
             free(before.sizes);
             free(after.sizes);
 
@@ -647,7 +672,7 @@ _modules_error shafa_decompress (char ** const path, bool rle_decompression)
                                             // If RLE decompression didn't occur
                                             if (!error && (!rle_decompression || mode == 'N')) {
 
-                                                print_summary(total_time, sf_sizes, sizes, length, path_wrt);                                               
+                                                print_summary(total_time, sf_sizes, sizes, length, path_wrt, _SHAFA);                                               
                       
                                             } // If RLE decompression occurred
                                             else if (!error && rle_decompression) {
@@ -656,7 +681,7 @@ _modules_error shafa_decompress (char ** const path, bool rle_decompression)
                                                 final_path = rm_ext(path_wrt);
                                                 
                                                 if (final_path) {
-                                                    print_summary(total_time, sf_sizes, final_sizes.sizes, length, final_path); 
+                                                    print_summary(total_time, sf_sizes, final_sizes.sizes, length, final_path, _SHAFA_RLE); 
                                                     free(final_path);
                                                     free(final_sizes.sizes);
                                                 }

@@ -2,7 +2,7 @@
  *
  *  Author(s): Ana Teixeira, João Carvalho
  *  Created Date: 3 Dec 2020
- *  Updated Date: 30 Dec 2020
+ *  Updated Date: 31 Dec 2020
  *
  **************************************************/
 
@@ -58,22 +58,31 @@ void make_freq(unsigned char* block, int* freq, int size_block)
     }
 }
 
-void write_freq(int *freq, FILE* f_freq,  int block_num, int n_blocks) {
-    int i, j;
+_modules_error write_freq(int *freq, FILE* f_freq,  int block_num, int n_blocks) {
+    int i, j, print = 0, print2 = 0, print3 = 0;
+    _modules_error error = _SUCCESS;
+    
     for(i = 0; i < 256;) //Goes through the block of frequencies
     {
-        fprintf(f_freq,"%d", freq[i]); //writes the frequency of each value on the freq file
-        for(j = i; freq[i] == freq[j] && j<256 ; j++) //If the frequencies of consecutive values are the same writes ';' after the fisrt value
-        {
-            if(j!=255) {
-                fprintf(f_freq, ";");
-            }  
+        print = fprintf(f_freq,"%d", freq[i]); //writes the frequency of each value on the freq file
+        if(print >= 1) {
+            for(j = i; freq[i] == freq[j] && j<256 ; j++) //If the frequencies of consecutive values are the same writes ';' after the fisrt value
+            {
+                if(j!=255) {
+                print2 = fprintf(f_freq, ";");
+                if(print2 < 0) error = _FILE_STREAM_FAILED;
+                }  
+            }
+            i = j;
         }
-        i = j;
+        else error = _FILE_STREAM_FAILED; 
     }
     if(block_num == n_blocks -1) {
-        fprintf(f_freq, "@0");
+        print3 = fprintf(f_freq, "@0");
+        if(print3 < 1) error = _FILE_STREAM_FAILED;
     }
+
+    return error;
 }
 
 static inline void print_summary(long long n_blocks, unsigned long *block_sizes, unsigned long *block_rle_sizes, float compression_ratio, double total_t, const char * const path_rle, const char * const path_freq, const char * const path_rle_freq) {
@@ -117,7 +126,7 @@ _modules_error freq_rle_compress(char** const path, const bool force_rle, const 
     double total_t;
     float compression_ratio;
     uint8_t *buffer, *block;
-    int size_f, read;
+    int size_f, read, print;
     long long n_blocks;
     bool compress_rle;
     long size_of_last_block;
@@ -195,39 +204,48 @@ _modules_error freq_rle_compress(char** const path, const bool force_rle, const 
                                                     
 
                                                             if(block_num == 0 && compress_rle) {
-                                                                fprintf(f_rle_freq,"@R@%lld", n_blocks); //The start of the freq file: @R@n_blocks@size_block_freq@
+                                                                print = fprintf(f_rle_freq,"@R@%lld", n_blocks); //The start of the freq file: @R@n_blocks@size_block_freq@
                                                             }
                                                             if(block_num == 0 && (!compress_rle || force_freq)) {
-                                                                fprintf(f_freq,"@N@%lld", n_blocks); //The start of the freq file: @R@n_blocks@size_block_freq@
+                                                                print = fprintf(f_freq,"@N@%lld", n_blocks); //The start of the freq file: @R@n_blocks@size_block_freq@
                                                             }
                                                             
-                                                            int *freq = malloc(sizeof(int)*256); //Allocates memory for all the symbol's frequencies
-                                                            if(freq) {
+                                                            if(print >= 4) {
+
+                                                                int *freq = malloc(sizeof(int)*256); //Allocates memory for all the symbol's frequencies
+                                                                if(freq) {
                                                         
-                                                                if(compress_rle) {
-                                                                    block_rle_sizes[block_num] = size_block_rle;
-                                                                    int res = fwrite(block, 1, size_block_rle, f_rle); //Writes the first block of frquencies in the freq file
-                                                                    if(res == size_block_rle){
-                                                                        make_freq(block, freq, size_block_rle); //Generates an array of frequencies of the block
+                                                                    if(compress_rle) {
+                                                                        block_rle_sizes[block_num] = size_block_rle;
+                                                                        int res = fwrite(block, 1, size_block_rle, f_rle); //Writes the first block of frquencies in the freq file
+                                                                        if(res == size_block_rle){
+                                                                            make_freq(block, freq, size_block_rle); //Generates an array of frequencies of the block
                                                                 
-                                                                        fprintf(f_rle_freq, "@%ld@", size_block_rle);
-                                                                        write_freq(freq, f_rle_freq, block_num, n_blocks);
+                                                                            if(fprintf(f_rle_freq, "@%ld@", size_block_rle) >= 2) {
+                                                                                error = write_freq(freq, f_rle_freq, block_num, n_blocks);
+                                                                            }
+                                                                            else error = _FILE_STREAM_FAILED;
                                                                 
+                                                                        }
+                                                                        else error = _FILE_STREAM_FAILED;
                                                                     }
-                                                                    else error = _FILE_STREAM_FAILED;
-                                                                }
-                                                                if(!compress_rle || force_freq) {
+                                                                    if(!compress_rle || force_freq) {
                                                             
-                                                                    make_freq(buffer+s, freq, compresd); //Generates an array of frequencies of the block
+                                                                        make_freq(buffer+s, freq, compresd); //Generates an array of frequencies of the block
                                                             
-                                                                    fprintf(f_freq, "@%ld@", compresd);
-                                                                    write_freq(freq, f_freq, block_num, n_blocks);
+                                                                        if(fprintf(f_freq, "@%ld@", compresd) >= 2) {
+                                                                            error = write_freq(freq, f_freq, block_num, n_blocks);
+                                                                            
+                                                                        }
+                                                                        else error = _FILE_STREAM_FAILED;
                                                             
-                                                                }
-                                                            free(freq);
+                                                                    }
+                                                                    free(freq);
                                                     
+                                                                }
+                                                                else error = _LACK_OF_MEMORY;
                                                             }
-                                                            else error = _LACK_OF_MEMORY;
+                                                            else error = _FILE_STREAM_FAILED;
 
                                                         s+=compresd;
                                                         free(block); 

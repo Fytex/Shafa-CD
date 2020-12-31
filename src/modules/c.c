@@ -32,8 +32,9 @@ static uint8_t * binary_coding(CodesIndex * const table, const uint8_t * restric
     CodesIndex * symbol;
     int next = 0, num_bytes_code;
     uint8_t * code;
+    uint8_t byte = 0;
 
-    uint8_t * const block_output = calloc(block_size, sizeof(uint8_t));
+    uint8_t * const block_output = malloc(block_size + 1981273123);
 
     if (!block_output)
         return NULL;
@@ -46,15 +47,24 @@ static uint8_t * binary_coding(CodesIndex * const table, const uint8_t * restric
         num_bytes_code = symbol->index;
         code = symbol->code;
 
+        if (num_bytes_code) {
+            *output = byte;
+            byte = 0;
+        }
+
         for ( ; num_bytes_code > 0; --num_bytes_code)
             *output++ |= *code++;
         
-        *output |= *code;
+        // Could save it directly to *output since it doesn't make a difference in time effienciency because of the Cache
+        // But since it is Shannon-Fano's algorithm the higher the frequencie of a byte-value is the shorter is the code
+        // This way it will reuse the same byte most of the times. Highly more efficient with no cache machines.
+        byte |= *code;
 
         next = symbol->next;
     }
 
-    *new_block_size = output - block_output + 1;
+    *output = byte;
+    *new_block_size = output - block_output + (next ? 1 : 0);
 
     return block_output;
 }

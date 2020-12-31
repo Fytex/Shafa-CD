@@ -65,10 +65,10 @@ static void print_summary (double time, unsigned long * decomp_sizes, unsigned l
 
 /**
 \brief Loads the rle file and saves it
- @param f_rle Pointer to the original/RLE files path
- @param size_of_block Block size
+ @param f_rle Pointer to the RLE file
+ @param size_of_block Size of the block to be loaded
  @param error Error status
- @returns Saved file content
+ @returns A string with a block of RLE content
 */
 char* load_rle (FILE* f_rle, unsigned long size_of_block, _modules_error* error) 
 {
@@ -100,12 +100,13 @@ char* load_rle (FILE* f_rle, unsigned long size_of_block, _modules_error* error)
 
 
 /**
-\brief Allocates space to the descompressed file
- @param buffer Saved file content
- @param size_of_block Block size
- @param size_string String size
+\brief Decompresses a RLE block
+ @param buffer String with a block of the RLE file loaded
+ @param block_size Size of the RLE block
+ @param size_string Size of the decompressed block
+ @param final_sizes Pointer to the address of an array with the purpose of saving the size of the decompressed block
  @param error Error status
- @returns String with space allocated to save the descompressed file
+ @returns String with the decompressed content
 */
 char* rle_block_decompressor (char* buffer, unsigned long block_size, long long* size_string, unsigned long *final_sizes, _modules_error* error) 
 {
@@ -186,11 +187,22 @@ char* rle_block_decompressor (char* buffer, unsigned long block_size, long long*
     return sequence;
 }
 
+/**
+\brief Struct to save the number of blocks and the sizes of each one
+*/
 typedef struct {
     unsigned long * sizes;
     long long length;
 } BlocksSize;
 
+
+/**
+\brief Decompresses an RLE file
+ @param path Pointer to the RLE file's path
+ @param blocks_size Block size
+ @param final_sizes String size
+ @returns Error status
+*/
 _modules_error _rle_decompress (char ** const path, BlocksSize *blocks_size, BlocksSize *final_sizes) 
 {
     _modules_error error = _SUCCESS; 
@@ -381,10 +393,10 @@ void free_tree(BTree tree) {
 }
 
 /**
-\brief Adds a given code to the BTree
+\brief Adds a given symbol to the BTree
  @param decoder Tree with saved symbols to help in decoding
- @param *code Path to save the symbol in the correct leaf
- @param symbol character to be saved in the tree 
+ @param code Path to save the symbol in the correct leaf
+ @param symbol Symbol to be saved in the tree 
  @returns Error status
 */
 _modules_error add_tree(BTree* decoder, char *code, char symbol) 
@@ -409,7 +421,7 @@ _modules_error add_tree(BTree* decoder, char *code, char symbol)
 }
 
 /**
-\brief Allocates memory to a binary tree that contains symbols codes
+\brief Generates a binary tree that contains the symbols acording to the codes
  @param f_cod File .cod
  @param block_sizes Block sizes
  @param index Index to the block that we are currently on
@@ -492,10 +504,10 @@ _modules_error create_tree (FILE* f_cod, unsigned long* block_sizes, long long i
 }
 
 /**
-\brief Allocates memory to the descompressed file
+\brief Decompresses a block of shafa code
  @param shafa Content of the file to be descompressed
  @param block_size Block size
- @param decoder Binary tree with the symbols codes
+ @param decoder Binary tree with the symbols
  @returns String with the decompressed block
 */
 char* shafa_block_decompressor (char* shafa, unsigned long block_size, BTree decoder) {

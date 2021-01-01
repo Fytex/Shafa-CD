@@ -2,7 +2,7 @@
  *
  *  Author(s): Francisco Neves, Leonardo Freitas
  *  Created Date: 3 Dec 2020
- *  Updated Date: 30 Dec 2020
+ *  Updated Date: 1 Jan 2021
  *
  ***********************************************/
 
@@ -18,37 +18,39 @@
 #define NUM_SYMBOLS 256
 #define MIN(a,b) ((a) < (b) ? a : b)
 
-static void read_Block(char * codes_input, unsigned long frequencies[NUM_SYMBOLS]) 
+static _modules_error read_Block(char * restrict codes_input, unsigned long * restrict frequencies) 
 {
-    char * ptr = codes_input;
-    unsigned long auxfreq;
-    int nread = 0;
+    int read_count;
 
-    for (int i = 0; i < NUM_SYMBOLS; ++i){
-        if (sscanf(ptr, "%lu[^;]", &frequencies[i]) == 1){
-                     
-            auxfreq = frequencies[i];
-             
-            while (auxfreq != 0){  
-                auxfreq /= 10;  
-                nread++;  
-            }  
-            if (nread == 0) ++nread;
+    if (sscanf(codes_input, "%lu%n;", frequencies, &read_count) != 1)
+        return _FILE_UNRECOGNIZABLE;
 
-            ptr += nread + 1; 
-            nread = 0;
-        }       
-        else if(i >= 1){
+    codes_input += read_count + 1;
+
+    for (int i = 1; i < NUM_SYMBOLS; ++i) {
+
+        if (sscanf(codes_input, "%lu%n", &frequencies[i], &read_count) == 1) {
+
+            if (codes_input[read_count] != ';' && i != NUM_SYMBOLS - 1)
+                return _FILE_UNRECOGNIZABLE;
+
+            codes_input += read_count + 1;
+        }  
+        else if (*codes_input == ';' || (*codes_input == '\0' && i == NUM_SYMBOLS - 1)) {
             frequencies[i] = frequencies[i-1];
-            ++ptr;
+            ++codes_input;
         }
-        else{
-            ++ptr;
-        }
+        else
+            return _FILE_UNRECOGNIZABLE;
     }
+
+    if (codes_input[-1] != '\0')
+        return _FILE_UNRECOGNIZABLE;
+    
+    return _SUCCESS;
 }
 
-static void insert_Sort (unsigned long frequencies[], int positions[], int left, int right)
+static void insert_sort (unsigned long frequencies[], int positions[], int left, int right)
 {
     unsigned long tmpFreq;
     int j, a, iters;
@@ -138,7 +140,7 @@ static void sf_codes (unsigned long frequencies[], char codes[NUM_SYMBOLS][NUM_S
     }
 }
 
-static int not_Null (unsigned long frequencies[NUM_SYMBOLS])
+static int not_null (unsigned long frequencies[NUM_SYMBOLS])
 {
     int r = 0;
     for (int i = NUM_SYMBOLS - 1; frequencies[i] == 0; --i) ++r;
@@ -206,77 +208,106 @@ _modules_error get_shafa_codes(const char * path)
                 if (mode == 'R' || mode == 'N') {
 
                     sizes = malloc (num_blocks * sizeof(unsigned long));
+   
+                    if (sizes) {                    
 
-                    if (!sizes)
-                        return _LACK_OF_MEMORY;                         
+                        path_codes = add_ext(path, CODES_EXT);
 
-                    path_codes = add_ext(path, CODES_EXT);
+                        if (path_codes) {
 
-                    if (path_codes) {
+                            fd_codes = fopen(path_codes, "wb");
 
-                        fd_codes = fopen(path_codes, "wb");
-
-                        if (fd_codes) {
-
-                            fprintf(fd_codes, "@%c@%lld", mode, num_blocks);                               
-
-                            for (long long i = 0; i < num_blocks && !error; ++i) {
-
-                                codes = calloc(1, sizeof(char[NUM_SYMBOLS][NUM_SYMBOLS]));
+                            if (fd_codes) {
                                 
-                                if (codes) {
-
-                                    memset(frequencies, 0, NUM_SYMBOLS * 4);
-                                    for (int j = 0; j < NUM_SYMBOLS; ++j) positions[j] = j;
-
-                                    fscanf(fd_freq, "@%lu", &block_size);
-                                    sizes[i] = block_size;
+                                if (fprintf(fd_codes, "@%c@%lld", mode, num_blocks) >= 3) {                               
                                     
-                                    block_input = malloc(9 * NUM_SYMBOLS + (NUM_SYMBOLS - 1) + 1); // 9 (max digits for frequency) + 256 (symbols) + 255 (';') + 1 (NULL terminator)
+                                    for (long long i = 0; i < num_blocks && !error; ++i) {
 
-                                    if (block_input) {
-                                        fscanf(fd_freq, "@%2559[^@]", block_input);
+                                        codes = calloc(1, sizeof(char[NUM_SYMBOLS][NUM_SYMBOLS]));
+                                
+                                        if (codes) {
+
+                                            memset(frequencies, 0, NUM_SYMBOLS * 4);
+                                            for (int j = 0; j < NUM_SYMBOLS; ++j) positions[j] = j;
+
+                                            if (fscanf(fd_freq, "@%lu", &block_size) == 1) {
+                                                sizes[i] = block_size;
+                                    
+                                                block_input = malloc(9 * NUM_SYMBOLS + (NUM_SYMBOLS - 1) + 1); // 9 (max digits for frequency) + 256 (symbols) + 255 (';') + 1 (NULL terminator)
+
+                                                if (block_input) {
+                                                    
+                                                    if (fscanf(fd_freq, "@%2559[^@]", block_input) == 1) {
                                             
-                                        read_Block(block_input, frequencies);
-                                        insert_Sort(frequencies, positions, 0, NUM_SYMBOLS - 1);
+                                                        error = read_Block(block_input, frequencies);
+                                                       
+                                                        if (!error) {
+                                                            
+                                                            insert_sort(frequencies, positions, 0, NUM_SYMBOLS - 1);
 
-                                        freq_notnull = not_Null(frequencies);
+                                                            freq_notnull = not_null(frequencies);
 
-                                        sf_codes(frequencies, codes, 0, freq_notnull);
+                                                            sf_codes(frequencies, codes, 0, freq_notnull);
 
-                                        fprintf(fd_codes, "@%lu@", block_size);
-                                        for (iter = 0; iter < NUM_SYMBOLS - 1; ++iter) fprintf(fd_codes, "%s;", codes[positions[iter]]);
-                                        
-                                        fprintf(fd_codes, "%s", codes[positions[iter]]);
+                                                            if (fprintf(fd_codes, "@%lu@", block_size) >= 2) {
 
-                                        free(block_input);
+                                                                for (iter = 0; iter < NUM_SYMBOLS - 1 && !error; ++iter) {
+                                                                    
+                                                                    if (fprintf(fd_codes, "%s;", codes[positions[iter]]) < 0)
+                                                                        error = _FILE_STREAM_FAILED;
+                                                                }
+                                                                    
+                                                                if (!error && fprintf(fd_codes, "%s", codes[positions[iter]]) < 0) 
+                                                                    error = _FILE_STREAM_FAILED;
+                                                                    
+                                                            }
+                                                            else 
+                                                                error = _FILE_STREAM_FAILED;
+                                                             
+                                                        }
+
+                                                    }
+                                                    else 
+                                                        error = _FILE_STREAM_FAILED;
+                                                    
+
+                                                    free(block_input);
+                                                }
+                                                else
+                                                    error = _LACK_OF_MEMORY;
+                                            }
+                                            else 
+                                                error = _FILE_STREAM_FAILED;
+                                            
+
+                                            free(codes);
+                                        }
+                                        else
+                                            error = _LACK_OF_MEMORY;
                                     }
-                                    else
-                                        error = _LACK_OF_MEMORY;
-
-                                    free(codes);
                                 }
-                                else
-                                    error = _LACK_OF_MEMORY;
+                                else 
+                                    error = _FILE_STREAM_FAILED;
 
+                                if (!error)
+                                    fprintf(fd_codes, "@0");
+
+                                fclose(fd_codes);
                             }
-
-                            if (!error)
-                                fprintf(fd_codes, "@0");
-
-                            fclose(fd_codes);
+                            else {
+                                error = _FILE_INACCESSIBLE;
+                                free(path_codes);
+                            }
                         }
-                        else {
-                            free(path_codes);
-                            error = _FILE_INACCESSIBLE;
-                        }
+                        else 
+                            error = _LACK_OF_MEMORY;
                     }
                     else
                         error = _LACK_OF_MEMORY;      
                 }
                 else
-                    error = _FILE_UNRECOGNIZABLE;     
-            }
+                    error = _FILE_UNRECOGNIZABLE;   
+            }  
             else 
                 error = _FILE_UNRECOGNIZABLE;
             

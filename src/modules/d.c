@@ -39,7 +39,7 @@ typedef enum
  @param new_path The path to the generated file
  @param algo The type of decoding that occured
 */
-static void print_summary (double time, unsigned long * decomp_sizes, unsigned long * new_sizes, long long length, char* new_path, Algorithm algo) 
+static inline void print_summary (double time, unsigned long * decomp_sizes, unsigned long * new_sizes, long long length, char* new_path, Algorithm algo) 
 {
     printf(
         "Alexandre Martins, a93242, MIEI/CD, 1-JAN-2021\n"
@@ -70,7 +70,7 @@ static void print_summary (double time, unsigned long * decomp_sizes, unsigned l
  @param error Error status
  @returns A string with a block of RLE content
 */
-char* load_rle (FILE* f_rle, unsigned long size_of_block, _modules_error* error) 
+static char* load_rle (FILE* f_rle, unsigned long size_of_block, _modules_error* error) 
 {
     char *buffer;
 
@@ -108,7 +108,7 @@ char* load_rle (FILE* f_rle, unsigned long size_of_block, _modules_error* error)
  @param error Error status
  @returns String with the decompressed content
 */
-char* rle_block_decompressor (char* buffer, unsigned long block_size, long long* size_string, unsigned long *final_sizes, _modules_error* error) 
+static char* rle_block_decompressor (char* buffer, unsigned long block_size, long long* size_string, unsigned long *final_sizes, _modules_error* error) 
 {
     unsigned long orig_size, l;
     char *sequence;
@@ -203,7 +203,7 @@ typedef struct {
  @param final_sizes String size
  @returns Error status
 */
-_modules_error _rle_decompress (char ** const path, BlocksSize *blocks_size, BlocksSize *final_sizes) 
+static _modules_error _rle_decompress (char ** const path, BlocksSize *blocks_size, BlocksSize *final_sizes) 
 {
     _modules_error error = _SUCCESS; 
     FILE *f_rle, *f_freq, *f_wrt;
@@ -384,7 +384,7 @@ typedef struct btree{
 \brief Frees all the memory used by a BTree
  @param tree Binary tree
 */
-void free_tree(BTree tree) 
+static void free_tree(BTree tree) 
 {
     if (tree) {
         free_tree(tree->right);
@@ -401,7 +401,7 @@ void free_tree(BTree tree)
  @param symbol Symbol to be saved in the tree 
  @returns Error status
 */
-_modules_error add_tree(BTree* decoder, char *code, char symbol) 
+static _modules_error add_tree(BTree* decoder, char *code, char symbol) 
 {
     // Creation of the path to the symbol we are placing
     for (unsigned long i = 0; code[i]; ++i) {
@@ -431,7 +431,7 @@ _modules_error add_tree(BTree* decoder, char *code, char symbol)
  @param decoder Pointer to the binary tree
  @returns Error status
 */
-_modules_error create_tree (FILE* f_cod, unsigned long* block_sizes, long long index, BTree* decoder)
+static _modules_error create_tree (FILE* f_cod, unsigned long* block_sizes, long long index, BTree* decoder)
 {
     _modules_error error;
     unsigned long crrb_size;
@@ -511,7 +511,7 @@ _modules_error create_tree (FILE* f_cod, unsigned long* block_sizes, long long i
  @param decoder Binary tree with the symbols
  @returns String with the decompressed block
 */
-char* shafa_block_decompressor (char* shafa, unsigned long block_size, BTree decoder) 
+static char* shafa_block_decompressor (char* shafa, unsigned long block_size, BTree decoder) 
 {
     char* decomp;
     BTree root;

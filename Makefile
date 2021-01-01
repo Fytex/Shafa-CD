@@ -1,14 +1,17 @@
 # Name of the project
 PROJ_NAME=shafa
 
-# Main .c file
-C_MAIN=./src/$(PROJ_NAME).c
-
 # EXT .c file
-C_EXT=$(shell find src/ -name '*.c')
+SOURCE=$(shell find src/ -name '*.c')
+
+#EXT .c file no pthread
+SOURCE_NO_PTHREAD=$(shell find src/ -name '*.c' -not -name 'multithread.*')
 
 # Object files
-OBJ=$(subst .c,.o,$(subst src,obj,$(C_MAIN) $(C_EXT)))
+OBJ=$(subst .c,.o,$(subst src,obj,$(SOURCE)))
+
+# Object files no pthread
+OBJ_NO_PTHREAD=$(subst .c,.o,$(subst src,obj,$(SOURCE_NO_PTHREAD)))
 
 # Compiler and linker
 CC=gcc
@@ -16,22 +19,28 @@ CC=gcc
 # Flags for compiler
 CC_FLAGS=-std=c17 \
          -c       \
-		 -MP      \
-		 -MD      \
-		 -Wall
+         -MP      \
+         -MD      \
+	     -Wall
 
 #
 # Compilation and linking
 #
 
-all: objFolder $(PROJ_NAME)
-
-$(PROJ_NAME): $(OBJ)
-	@ echo 'Building binary using GCC linker: $@'
-	$(CC) -o $@ $^
-	@ echo 'Finished building binary: $@'
+seq: objFolder $(OBJ_NO_PTHREAD)
+	@ echo 'Building binary using GCC linker: $(OBJ_NO_PTHREAD)'
+	$(CC) -o $(PROJ_NAME) $(OBJ_NO_PTHREAD)
+	@ echo 'Finished building binary - NO PTHREAD'
 	@ echo ' '
 
+
+pthread: objFolder $(PROJ_NAME)
+
+$(PROJ_NAME): $(OBJ)
+	@ echo 'Building binary using GCC linker with -pthread: $@'
+	$(CC) -o $@ $^ -pthread
+	@ echo 'Finished building binary - PTHREAD'
+	@ echo ' '
 
 ./obj/%.o: ./src/%.c
 	@ echo 'Building target using GCC compiler: $<'

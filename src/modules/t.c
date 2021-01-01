@@ -301,6 +301,8 @@ _modules_error get_shafa_codes(const char * path)
                         }
                         else 
                             error = _LACK_OF_MEMORY;
+                            
+                        free(sizes);
                     }
                     else
                         error = _LACK_OF_MEMORY;      

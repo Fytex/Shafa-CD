@@ -46,7 +46,7 @@ static uintptr_t wrapper(Data * data)
     
     free(data);
 
-    return error;
+    return prev_error ? prev_error : error;
 }
 
 

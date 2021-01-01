@@ -253,7 +253,7 @@ _modules_error get_shafa_codes(const char * path)
 
                                                                 for (iter = 0; iter < NUM_SYMBOLS - 1 && !error; ++iter) {
                                                                     
-                                                                    if (fprintf(fd_codes, "%s;", codes[positions[iter]]) < 0)
+                                                                    if (fprintf(fd_codes, "%s;", codes[positions[iter]]) < 1)
                                                                         error = _FILE_STREAM_FAILED;
                                                                 }
                                                                     

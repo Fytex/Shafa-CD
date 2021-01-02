@@ -144,7 +144,8 @@ static inline void print_summary(long long n_blocks, unsigned long *block_sizes,
         else printf("%lu/", block_sizes[i]);
     }
     
-    printf("RLE Compression: %s (%f%% compression)\n", path_rle, compression_ratio);
+    if(path_rle)
+        printf("RLE Compression: %s (%f%% compression)\n", path_rle, compression_ratio);
         
     printf("Size of blocks analyzed in the RLE file: ");
     //Cycle to print the block sizes of the rle file
@@ -179,7 +180,7 @@ _modules_error freq_rle_compress(char** const path, const bool force_rle, const 
     long long n_blocks, block_num;
     bool compress_rle;
     long size_of_last_block;
-    char *path_rle, *path_rle_freq, *path_freq; 
+    char *path_rle = NULL, *path_rle_freq = NULL, *path_freq = NULL; 
     unsigned long the_block_size, size_block_rle, compresd, *block_sizes, *block_rle_sizes, s;
     FILE *f, *f_rle=NULL, *f_rle_freq=NULL, *f_freq=NULL;
 
@@ -338,25 +339,30 @@ _modules_error freq_rle_compress(char** const path, const bool force_rle, const 
                                 fclose(f_freq);
                             }
                             else error = _FILE_INACCESSIBLE;
-                            free(path_freq);
+                            if(error || (!force_freq && (force_rle || compress_rle))){
+                                free(path_freq);
+                                path_freq = NULL;
+                            }
                         }
                         else error = _LACK_OF_MEMORY;
 
                         fclose(f_rle_freq);
                     }
                     else error = _FILE_INACCESSIBLE;
-                    free(path_rle_freq);
+                    if(error || (!force_rle && !compress_rle)){
+                        free(path_rle_freq);
+                        path_rle_freq = NULL;
+                    }
                 }
                 else error = _LACK_OF_MEMORY;
 
                 fclose(f_rle);
             }
             else error = _FILE_INACCESSIBLE;
-            //if(!error) {
-                //free(*path);
-                //*path = path_rle;
-            //free(path_rle);
-            //}
+            if(error){
+                free(path_rle);
+                path_rle = NULL;
+            }
         }
         else error = _LACK_OF_MEMORY;
         
@@ -366,6 +372,8 @@ _modules_error freq_rle_compress(char** const path, const bool force_rle, const 
     else error = _FILE_INACCESSIBLE;
     //If there was no error
     if(!error){
+        free(*path);
+        *path = path_rle;
         //Calculates the runtime
         t = clock() - t;
         //Calculates the time in milliseconds
@@ -373,6 +381,8 @@ _modules_error freq_rle_compress(char** const path, const bool force_rle, const 
         print_summary(n_blocks, block_sizes, block_rle_sizes, compression_ratio, total_t, path_rle,  path_freq, path_rle_freq);
         free(block_sizes);
         free(block_rle_sizes);
+        if(path_freq) free(path_freq);
+        if(path_rle_freq) free(path_rle_freq);
     }
 
     return error;

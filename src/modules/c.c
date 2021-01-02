@@ -13,6 +13,7 @@
 
 #include "c.h"
 #include "utils/extensions.h"
+#include "utils/multithread.h"
 
 #define MAX_CODE_INT 32
 #define NUM_SYMBOLS 256
@@ -25,6 +26,15 @@ typedef struct {
     uint8_t code[MAX_CODE_INT + 1];
 } CodesIndex;
 
+typedef struct {
+    unsigned long block_size;
+    FILE * fd_shafa;
+    char * block_codes;
+    uint8_t * block_input;
+    uint8_t * block_output;
+    unsigned long * new_block_size;
+} Arguments;
+
 
 static uint8_t * binary_coding(CodesIndex * const table, const uint8_t * restrict block_input, const unsigned long block_size, unsigned long * const new_block_size)
 {
@@ -34,7 +44,7 @@ static uint8_t * binary_coding(CodesIndex * const table, const uint8_t * restric
     uint8_t * code;
     uint8_t byte = 0;
 
-    uint8_t * const block_output = calloc(block_size * 1.05, sizeof(uint8_t)); // Uncompressed Block Size + 5% which is a big margin for the new compressed block size
+    uint8_t * const block_output = malloc(block_size * 1.05); // Uncompressed Block Size + 5% which is a big margin for the new compressed block size
 
     if (!block_output)
         return NULL;
@@ -48,12 +58,12 @@ static uint8_t * binary_coding(CodesIndex * const table, const uint8_t * restric
         code = symbol->code;
 
         if (num_bytes_code) {
-            *output = byte;
+            *output++ = byte | *code++;
             byte = 0;
-        }
 
-        for ( ; num_bytes_code > 0; --num_bytes_code)
-            *output++ |= *code++;
+            for ( ; --num_bytes_code > 0; --num_bytes_code)
+                *output++ = *code++;
+        }
         
         // Could save it directly to *output since it doesn't make a difference in time effienciency because of the Cache
         // But since it is Shannon-Fano's algorithm the higher the frequencie of a byte-value is the shorter is the code
@@ -70,8 +80,16 @@ static uint8_t * binary_coding(CodesIndex * const table, const uint8_t * restric
 }
 
 
-static int compress_to_buffer(FILE * const fd_file, FILE * const fd_shafa, const char * block_codes, const uint8_t * const block_input, const unsigned long block_size, uint8_t ** const block_output, unsigned long * const new_block_size)
+//static _modules_error compress_to_buffer(const char * block_codes, const uint8_t * const block_input, const unsigned long block_size, uint8_t ** const block_output, unsigned long * const new_block_size)
+static _modules_error compress_to_buffer(void * const _args)
 {
+    Arguments * args = (Arguments *) _args;
+    const char * block_codes = args->block_codes;
+    const uint8_t * block_input = args->block_input;
+    const unsigned long block_size = args->block_size;
+    uint8_t ** const block_output = &(args->block_output);
+    unsigned long * const new_block_size = args->new_block_size;
+
     CodesIndex header_symbol_row, *symbol_row;
     char cur_char, next_char;
     int bit_idx, code_idx;
@@ -101,6 +119,7 @@ static int compress_to_buffer(FILE * const fd_file, FILE * const fd_shafa, const
                 if (cur_char == '1')
                     ++byte;
                 else if (cur_char != '0') {
+                    free(args->block_codes);
                     free(table);
                     return _FILE_UNRECOGNIZABLE;
                 }
@@ -138,12 +157,13 @@ static int compress_to_buffer(FILE * const fd_file, FILE * const fd_shafa, const
             next_char = *block_codes++;
         }
         else if (syb_idx < NUM_SYMBOLS - 1) { // if end of codes' block but still hasn't iterated over 256 symbols
+            free(args->block_codes);
             free(table);
             return _FILE_UNRECOGNIZABLE;
         }
 
     }
-   
+    free(args->block_codes);
 
     if (cur_char != '\0') { // Check whether file is actually correct (Not required but it is an assert)
         free(table);
@@ -210,6 +230,32 @@ static int compress_to_buffer(FILE * const fd_file, FILE * const fd_shafa, const
     return _SUCCESS;
 }
 
+
+static _modules_error write_shafa(void * const _args, _modules_error prev_error, _modules_error error)
+{
+    Arguments * args = (Arguments *) _args;
+    FILE * const fd_shafa = args->fd_shafa;
+    uint8_t * const block_output = args->block_output;
+    const unsigned long new_block_size = *args->new_block_size;
+
+    if (!error) {
+        if (!prev_error) {
+            if (fprintf(fd_shafa, "@%lu@", new_block_size) >= 2) {
+
+                if (fwrite(block_output, sizeof(uint8_t), new_block_size, fd_shafa) != new_block_size)
+                    error = _FILE_STREAM_FAILED;
+            }
+            else
+                error = _FILE_STREAM_FAILED;
+
+        }
+
+        free(block_output);        
+    }
+    return error;
+}
+
+
 static inline void print_summary(const long long num_blocks, const unsigned long * const blocks_input_size, const unsigned long * const blocks_output_size, const double total_time, const char * const path)
 {
     unsigned long block_input_size, block_output_size;
@@ -238,6 +284,7 @@ static inline void print_summary(const long long num_blocks, const unsigned long
 _modules_error shafa_compress(char ** const path)
 {
     FILE * fd_file, * fd_codes, * fd_shafa;
+    Arguments * args, ** array_args;
     clock_t t;
     float total_time;
     char * path_file = *path;
@@ -245,10 +292,10 @@ _modules_error shafa_compress(char ** const path)
     char * path_shafa;
     char * block_codes;
     char mode;
-    long long num_blocks;
-    unsigned long block_size, new_block_size;
+    long long num_blocks, thread_idx;
+    unsigned long block_size;
     int error = _SUCCESS;
-    uint8_t * block_input, * block_output = NULL;
+    uint8_t * block_input;
     unsigned long * blocks_size = NULL, * blocks_input_size, * blocks_output_size;
 
     t = clock();
@@ -281,63 +328,95 @@ _modules_error shafa_compress(char ** const path)
 
                         if (fd_shafa) {
 
-                            block_codes = malloc((33151 + 1 + 1) * sizeof(char)); //sum 1 to 256 (worst case shannon fano) + 255 semicolons + 1 byte NULL + 1 algorithm efficiency (exchange 2 * 256 + 2 compares for +1 byte in heap and +1 memory access)
+                            if (fprintf(fd_shafa, "@%lld", num_blocks) >= 2) {
 
-                            if (block_codes) {
+                                blocks_size = malloc(2 * num_blocks * sizeof(unsigned long));
 
-                                if (fprintf(fd_shafa, "@%lld", num_blocks) >= 2) {
+                                if (blocks_size) {
+                                    
+                                    blocks_input_size = blocks_size;
+                                    blocks_output_size = blocks_input_size + num_blocks; // Acts as a "virtual" array
 
-                                    blocks_size = malloc(2 * num_blocks * sizeof(unsigned long));
+                                    array_args = malloc(num_blocks * sizeof(Arguments *));
 
-                                    if (blocks_size) {
-                                        
-                                        blocks_input_size = blocks_size;
-                                        blocks_output_size = blocks_input_size + num_blocks; // Acts as a "virtual" array
+                                    if (array_args) {
 
-                                        for (long long i = 0; i < num_blocks && !error; ++i) {
+                                        for (thread_idx = 0; thread_idx < num_blocks; ++thread_idx) {
 
-                                            if (fscanf(fd_codes,"@%lu@%33151[^@]", &block_size, block_codes) == 2) {
-                                                block_input = malloc(block_size * sizeof(uint8_t));
+                                            block_codes = malloc((33151 + 1 + 1) * sizeof(char)); //sum 1 to 256 (worst case shannon fano) + 255 semicolons + 1 byte NULL + 1 algorithm efficiency (exchange 2 * 256 + 2 compares for +1 byte in heap and +1 memory access)
 
-                                                if (block_input) {
-                                                    if (fread(block_input, sizeof(uint8_t), block_size, fd_file) == block_size) {
-                                                        error = compress_to_buffer(fd_file, fd_shafa, block_codes, block_input, block_size, &block_output, &new_block_size); // use semaphore (mutex) [only when multithreading]
-
-                                                        if (!error) {
-                                                            if (fprintf(fd_shafa, "@%lu@", new_block_size) >= 2) {
-
-                                                                if (fwrite(block_output, sizeof(uint8_t), new_block_size, fd_shafa) != new_block_size)
-                                                                    error = _FILE_STREAM_FAILED;
-                                                                else {
-                                                                    blocks_input_size[i] = block_size;
-                                                                    blocks_output_size[i] = new_block_size;
-                                                                }
-
-                                                            }
-
-                                                            free(block_output);
-                                                        }
-                                                    }
-                                                    else
-                                                        error = _FILE_STREAM_FAILED;
-                                                    
-                                                    free(block_input);
-                                                }
-                                                else
-                                                    error = _LACK_OF_MEMORY;
+                                            if (!block_codes) {
+                                                error = _LACK_OF_MEMORY;
+                                                break;
                                             }
-                                            else
+
+                                            if (fscanf(fd_codes,"@%lu@%33151[^@]", &block_size, block_codes) != 2) {
+                                                free(block_codes);
                                                 error = _FILE_STREAM_FAILED;
+                                                break;
+                                            }
+
+                                            args = malloc(sizeof(Arguments));
+
+                                            if (!args) {
+                                                free(block_codes);
+                                                error = _LACK_OF_MEMORY;
+                                                break;
+                                            }
+                                                
+                                            block_input = malloc(block_size * sizeof(uint8_t));
+
+                                            if (!block_input) {
+                                                free(block_codes);
+                                                free(args);
+                                                error = _LACK_OF_MEMORY;
+                                                break;
+                                            }
+                                            if (fread(block_input, sizeof(uint8_t), block_size, fd_file) != block_size) {
+                                                free(block_codes);
+                                                free(block_input);
+                                                free(args);
+                                                error = _FILE_STREAM_FAILED;
+                                                break;
+                                            }
+
+                                            array_args[thread_idx] = args;
+
+                                            *args = (Arguments) {
+                                                .block_size = block_size,
+                                                .fd_shafa = fd_shafa,
+                                                .block_codes = block_codes,
+                                                .block_input = block_input,
+                                                .new_block_size = &blocks_output_size[thread_idx]
+                                            };
+
+                                            blocks_input_size[thread_idx] = block_size;
+                                                        
+                                            error = multithread_create(compress_to_buffer, write_shafa, args);
+
+                                            if (error) {
+                                                free(block_codes);
+                                                free(block_input);
+                                                free(args);
+                                                break;
+                                            }
                                         }
+                                        multithread_wait();
+
+                                        for (long long i = 0; i < thread_idx; ++i)
+                                            free(array_args[i]);
+
+                                        free(array_args);
                                     }
                                     else
                                         error = _LACK_OF_MEMORY;
                                 }
                                 else
-                                    error = _FILE_STREAM_FAILED;
+                                    error = _LACK_OF_MEMORY;
+                            }
+                            else
+                                error = _FILE_STREAM_FAILED;
                             
-                                free(block_codes);
-                           }
 
                             fclose(fd_shafa);
                         }

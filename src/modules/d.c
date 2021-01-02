@@ -207,16 +207,19 @@ static _modules_error _rle_decompress (char ** const path, BlocksSize *blocks_si
 {
     _modules_error error = _SUCCESS; 
     FILE *f_rle, *f_freq, *f_wrt;
-    char *path_freq, *path_wrt;
+    char *path_freq, *path_wrt, *path_rle;
     char *buffer, *sequence;
+    char mode;
     unsigned long *sizes;
     long long length, size_sequence;
 
-    f_rle = fopen(*path, "rb");
+    path_rle = *path;
+
+    f_rle = fopen(path_rle, "rb");
     if (f_rle) {
 
         // Creates path to the original file
-        path_wrt = rm_ext(*path);
+        path_wrt = rm_ext(path_rle);
         if (path_wrt) {
 
             f_wrt = fopen(path_wrt, "wb");
@@ -225,13 +228,12 @@ static _modules_error _rle_decompress (char ** const path, BlocksSize *blocks_si
                 if (!blocks_size->length) {
                     
                     //Creates path to the FREQ file
-                    path_freq = add_ext(*path, FREQ_EXT);
+                    path_freq = add_ext(path_rle, FREQ_EXT);
                     if (path_freq) {
                         
                         f_freq = fopen(path_freq, "rb");
                         if (f_freq) {
                             
-                            char mode;
                             // Reads the header of the FREQ file
                             if (fscanf(f_freq, "@%c@%lld", &mode, &length) == 2) {
                                 
@@ -246,10 +248,18 @@ static _modules_error _rle_decompress (char ** const path, BlocksSize *blocks_si
                                             if (fscanf(f_freq, "@%lu@%*[^@]", sizes + i) != 1) {
                                                 
                                                 error = _FILE_STREAM_FAILED;
+                                                
                                             }
                                         }
-                                        blocks_size->sizes = sizes;
-                                        blocks_size->length = length;
+                                        
+
+                                        if (error) {
+                                            free(sizes);
+                                        }
+                                        else {
+                                            blocks_size->sizes = sizes;
+                                            blocks_size->length = length;
+                                        }
 
                                     }
                                     else {
@@ -309,8 +319,12 @@ static _modules_error _rle_decompress (char ** const path, BlocksSize *blocks_si
                             }
                             free(buffer);
                         }
+                        if (error) {
+                            free(final_sizes->sizes); 
+                        }                   
                     }
                     else {
+
                         error = _LACK_OF_MEMORY;
                     }
 
@@ -321,7 +335,8 @@ static _modules_error _rle_decompress (char ** const path, BlocksSize *blocks_si
             else {
                 error = _FILE_INACCESSIBLE;
             }
-            free(path_wrt);
+            if (error)
+                free(path_wrt);
         }
         else {
             error = _LACK_OF_MEMORY;
@@ -333,6 +348,13 @@ static _modules_error _rle_decompress (char ** const path, BlocksSize *blocks_si
         error = _FILE_INACCESSIBLE;
     }
 
+    if (!error) {
+        
+        free(path_rle);
+        *path = path_wrt;
+        
+    }
+
     return error;
 }
 
@@ -342,11 +364,10 @@ _modules_error rle_decompress(char ** path)
     clock_t t;
     _modules_error error = _SUCCESS;
     double total_time;
-    char* path_wrt;
     BlocksSize before, after; // The before saves the RLE block sizes, the after saves the decompressed sizes
 
     t = clock();
-    before = after = (BlocksSize) {NULL, 0};
+    before = after = (BlocksSize) {.sizes = NULL, .length = 0};
 
     // Decompresses the RLE file and loads the RLE blocks sizes and the decompressed sizes
     error = _rle_decompress(path, &before, &after);
@@ -354,18 +375,9 @@ _modules_error rle_decompress(char ** path)
 
         t = clock() - t;
         total_time = (((double) t) / CLOCKS_PER_SEC) * 1000;
-        path_wrt = rm_ext(*path);
-
-        if (path_wrt) {
-
-            print_summary(total_time, before.sizes, after.sizes, before.length, path_wrt, _RLE);
-            free(before.sizes);
-            free(after.sizes);
-
-        }
-        else {
-            error = _LACK_OF_MEMORY;
-        }
+        print_summary(total_time, before.sizes, after.sizes, before.length, *path, _RLE);
+        free(before.sizes);
+        free(after.sizes);
 
     }
 
@@ -557,10 +569,9 @@ _modules_error shafa_decompress (char ** const path, bool rle_decompression)
 {
     _modules_error error;
     FILE *f_shafa, *f_cod, *f_wrt;
-    char *path_cod, *path_wrt, *final_path;
+    char *path_cod, *path_wrt, *path_shafa;
     char *shafa_code, *decomp; 
     char mode;
-    int flag = 1; 
     clock_t t;
     double total_time;
     long long length;
@@ -569,18 +580,19 @@ _modules_error shafa_decompress (char ** const path, bool rle_decompression)
     BTree decoder;
     BlocksSize blocks_size, final_sizes;
 
+    sizes = sf_sizes = NULL;
+    path_shafa = *path;
     error = _SUCCESS;
     decoder = NULL;
     t = clock();
-    flag = 1; // Flag to know if the file to write on was already closed or not
 
     // Opening the files
-    f_shafa = fopen(*path, "rb");
+    f_shafa = fopen(path_shafa, "rb");
 
     if (f_shafa) {
         
         // Creates path to the .cod file
-        path_cod = rm_ext(*path);
+        path_cod = rm_ext(path_shafa);
         if (path_cod) {
 
             path_cod = add_ext(path_cod, CODES_EXT);
@@ -590,7 +602,7 @@ _modules_error shafa_decompress (char ** const path, bool rle_decompression)
                 if (f_cod) {
 
                     // Creates path to the original file
-                    path_wrt = rm_ext(*path);
+                    path_wrt = rm_ext(path_shafa);
                     if (path_wrt) {
 
                         f_wrt = fopen(path_wrt, "wb");
@@ -603,16 +615,15 @@ _modules_error shafa_decompress (char ** const path, bool rle_decompression)
                                 if (fscanf(f_cod, "@%c@%lld", &mode, &length) == 2) {
                                     
                                     // Checking the mode of the file
-                                    if ((mode == 'N') || (mode == 'R')) { 
+                                    if ((mode == 'N' && !rle_decompression) || (mode == 'R')) { 
 
-                                        // Allocates memory to an array with the purpose of saving the sizes of each RLE/ORIGINAL block
-                                        sizes = malloc(sizeof(unsigned long)*length);
-                                        
-                                        if (sizes) {
-                                            
-                                            // Allocates memory to an array with the purpose of saving the size of each SHAF block
-                                            sf_sizes = malloc(sizeof(unsigned long)*length);
-                                            if (sf_sizes) {
+                                        // Allocates memory to an array with the purpose of saving the size of each SHAF block
+                                        sf_sizes = malloc(sizeof(unsigned long)*length);
+                                        if (sf_sizes) {
+
+                                            // Allocates memory to an array with the purpose of saving the sizes of each RLE/ORIGINAL block
+                                            sizes = malloc(sizeof(unsigned long)*length);
+                                            if (sizes) {
                                                 
                                                 for (long long i = 0; i < length && !error; ++i) {
 
@@ -669,44 +680,7 @@ _modules_error shafa_decompress (char ** const path, bool rle_decompression)
                                             else {
                                                 error = _LACK_OF_MEMORY;
                                             }
-                                            // Executes the rle decompression, using the data read in the COD file (avoids having to read the FREQ file to get the same data)
-                                            if (!error && rle_decompression) {
-
-                                                blocks_size.sizes = sizes; 
-                                                blocks_size.length = length;
-                                                fclose(f_wrt); // Neccessary to close to be able to read the RLE file generated correctly in the rle decompression
-                                                flag = 0; // Says that the RLE file doesn't need to be closed further ahead (avoids a double free)
-                                                final_sizes = (BlocksSize) {NULL, 0}; // Struct to save the final sizes of the blocks to print later 
-                                                error = _rle_decompress(&path_wrt, &blocks_size, &final_sizes);
-                                                
-                                            }
-                                            
-                                            t = clock() - t;
-                                            total_time = (((double) t) / CLOCKS_PER_SEC) * 1000;
-                                            
-                                            // If RLE decompression didn't occur
-                                            if (!error && (!rle_decompression || mode == 'N')) {
-
-                                                print_summary(total_time, sf_sizes, sizes, length, path_wrt, _SHAFA);                                               
-                      
-                                            } // If RLE decompression occurred
-                                            else if (!error && rle_decompression) {
-
-                                                // Generates the path without the RLE termination
-                                                final_path = rm_ext(path_wrt);
-                                                
-                                                if (final_path) {
-                                                    print_summary(total_time, sf_sizes, final_sizes.sizes, length, final_path, _SHAFA_RLE); 
-                                                    free(final_path);
-                                                    free(final_sizes.sizes);
-                                                }
-                                                else {
-                                                    error = _LACK_OF_MEMORY;
-                                                }
-                                            }
-
-                                            free(sizes);
-                                            free(sf_sizes);
+                          
                                             
                                         }
                                         else {
@@ -728,16 +702,15 @@ _modules_error shafa_decompress (char ** const path, bool rle_decompression)
                                 error = _FILE_STREAM_FAILED;
                             }
 
-                            if (flag) {
-                                fclose(f_wrt);
-                            }
-                            
+                            fclose(f_wrt); 
                         }
                         else {
                             error = _FILE_UNRECOGNIZABLE;
                             
                         }
-                        free(path_wrt);
+                        if (error) {
+                            free(path_wrt);
+                        }
                     }
                     else {
                         error = _LACK_OF_MEMORY;
@@ -766,6 +739,42 @@ _modules_error shafa_decompress (char ** const path, bool rle_decompression)
     else {
         error = _FILE_INACCESSIBLE;
     }
+
+    
+                                            
+    if (!error && rle_decompression) {   
+
+       
+        blocks_size.sizes = sizes; 
+        blocks_size.length = length;
+        final_sizes = (BlocksSize) {.sizes = NULL, .length = 0}; // Struct to save the final sizes of the blocks to print later 
+        error = _rle_decompress(&path_wrt, &blocks_size, &final_sizes);                     
+        
+    }
+    
+    if (!error) {
+
+        t = clock() - t;
+        total_time = (((double) t) / CLOCKS_PER_SEC) * 1000;                                  
+        *path = path_wrt;
+        free(path_shafa);
+
+        if (rle_decompression) {
+
+            print_summary(total_time, sf_sizes, final_sizes.sizes, length, path_wrt, _SHAFA_RLE); 
+            free(final_sizes.sizes);
+
+        }// If RLE decompression didn't occur
+        else {
+            print_summary(total_time, sf_sizes, sizes, length, path_wrt, _SHAFA);                                               
+        }
+    }
+    
+                                           
+    if (sizes) 
+        free(sizes);
+    if (sf_sizes) 
+        free(sf_sizes);
 
     return error;
 }

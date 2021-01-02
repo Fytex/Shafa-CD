@@ -22,6 +22,10 @@
 
 #define ERROR_CASE(NUM, MSG) case NUM: return MSG;
 
+/**
+\brief Returns an error 
+ @param num Number of error
+*/
 const char * error_msg(const int num)
 {
     // Since this returns a const char * allocated at compile time typically placed in .rodata

@@ -34,7 +34,7 @@ static uint8_t * binary_coding(CodesIndex * const table, const uint8_t * restric
     uint8_t * code;
     uint8_t byte = 0;
 
-    uint8_t * const block_output = malloc(block_size * 1.05); // Uncompressed Block Size + 5% which is a big margin for the new compressed block size
+    uint8_t * const block_output = calloc(block_size * 1.05, sizeof(uint8_t)); // Uncompressed Block Size + 5% which is a big margin for the new compressed block size
 
     if (!block_output)
         return NULL;

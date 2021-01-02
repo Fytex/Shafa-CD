@@ -2,7 +2,7 @@
  *
  *  Author(s): Alexandre Martins, Beatriz Rodrigues
  *  Created Date: 3 Dec 2020
- *  Updated Date: 30 Dec 2020
+ *  Updated Date: 2 Jan 2020
  *
  **************************************************/
 
@@ -64,38 +64,38 @@ static inline void print_summary (double time, unsigned long * decomp_sizes, uns
 
 
 /**
-\brief Loads the rle file and saves it
+\brief Loads the rle file to a buffer and saves it
  @param f_rle Pointer to the RLE file
  @param size_of_block Size of the block to be loaded
- @param error Error status
- @returns A string with a block of RLE content
+ @param buffer Address to a string to load a block of RLE content
+ @returns Error status
 */
-static char* load_rle (FILE* f_rle, unsigned long size_of_block, _modules_error* error) 
+static _modules_error load_rle (FILE* f_rle, unsigned long size_of_block, char ** buffer) 
 {
-    char *buffer;
+    _modules_error error = _SUCCESS;
 
     // Memory allocation for the buffer that will contain the contents of one block of symbols
-    buffer = malloc(size_of_block + 1);
+    *buffer = malloc(size_of_block + 1);
 
-    if (buffer) {
+    if (*buffer) {
         // The function fread loads the said contents into the buffer
         // For the correct execution, the amount read by fread has to match the amount that was supposed to be read: size_of_block
-        if (fread(buffer,1,size_of_block, f_rle) == size_of_block) {
+        if (fread(*buffer,1,size_of_block, f_rle) == size_of_block) {
 
-            buffer[size_of_block] = '\0'; // Ending the string
+            (*buffer)[size_of_block] = '\0'; // Ending the string
 
         } // Error caused by said amount not matching
         else {
-            *error = _FILE_STREAM_FAILED;
-            buffer = NULL;
+            error = _FILE_STREAM_FAILED;
+            *buffer = NULL;
         }
 
     } 
     else {
-        *error = _LACK_OF_MEMORY;
+        error = _LACK_OF_MEMORY;
     }
 
-    return buffer;
+    return error;
 }
 
 
@@ -105,13 +105,13 @@ static char* load_rle (FILE* f_rle, unsigned long size_of_block, _modules_error*
  @param block_size Size of the RLE block
  @param size_string Size of the decompressed block
  @param final_sizes Pointer to the address of an array with the purpose of saving the size of the decompressed block
- @param error Error status
- @returns String with the decompressed content
+ @param sequence Address to a string to hold the decompressed contents
+ @returns Error status 
 */
-static char* rle_block_decompressor (char* buffer, unsigned long block_size, long long* size_string, unsigned long *final_sizes, _modules_error* error) 
+static _modules_error rle_block_decompressor (char* buffer, unsigned long block_size, unsigned long *final_sizes, char ** sequence) 
 {
+    _modules_error error = _SUCCESS;
     unsigned long orig_size, l;
-    char *sequence;
     char simb;
     uint8_t n_reps;
 
@@ -126,8 +126,8 @@ static char* rle_block_decompressor (char* buffer, unsigned long block_size, lon
         orig_size = _64MiB + _1KiB;
 
     // Allocation of the corresponding memory 
-    sequence = malloc(orig_size + 1);
-    if (sequence) {
+    *sequence = malloc(orig_size + 1);
+    if (*sequence) {
 
         // Loop to decompress block by block
         l = 0; // Variable to be used to go through the sequence string 
@@ -153,14 +153,14 @@ static char* rle_block_decompressor (char* buffer, unsigned long block_size, lon
                         orig_size = _64MiB + _1KiB;
                         break;
                     default: // Invalid size
-                        *error = _FILE_UNRECOGNIZABLE;
-                        free(sequence);
-                        return NULL;
+                        error = _FILE_UNRECOGNIZABLE;
+                        free(*sequence);
+                        return error;
                 }
-                sequence = realloc(sequence, orig_size);
+                *sequence = realloc(*sequence, orig_size);
                 // In case of realloc failure, we free the previous memory allocation
-                if (!sequence) {
-                    *error = _LACK_OF_MEMORY;
+                if (!(*sequence)) {
+                    error = _LACK_OF_MEMORY;
                     free(sequence); // Frees the previously allocated memory
                     sequence = NULL;
                     break;
@@ -168,23 +168,23 @@ static char* rle_block_decompressor (char* buffer, unsigned long block_size, lon
 
             }
             if (n_reps) {
-                memset(sequence + l, simb, n_reps);
+                memset(*sequence + l, simb, n_reps);
                 l += n_reps;
             }
             else {
-                sequence[l++] = simb;
+                (*sequence)[l++] = simb;
             }
 
         }
-        *final_sizes = *size_string = l; 
-        sequence[++l] = '\0';
+        *final_sizes = l; 
+        (*sequence)[++l] = '\0';
 
     }
     else {
-        *error = _LACK_OF_MEMORY;
+        error = _LACK_OF_MEMORY;
     }
 
-    return sequence;
+    return error;
 }
 
 /**
@@ -211,7 +211,7 @@ static _modules_error _rle_decompress (char ** const path, BlocksSize *blocks_si
     char *buffer, *sequence;
     char mode;
     unsigned long *sizes;
-    long long length, size_sequence;
+    long long length;
 
     path_rle = *path;
 
@@ -224,11 +224,12 @@ static _modules_error _rle_decompress (char ** const path, BlocksSize *blocks_si
 
             f_wrt = fopen(path_wrt, "wb");
             if (f_wrt) {
+
                 // If we don't have data from the RLE block sizes from the COD file we read them from the FREQ file
                 if (!blocks_size->length) {
                     
                     //Creates path to the FREQ file
-                    path_freq = add_ext(path_rle, FREQ_EXT);
+                    path_freq = add_ext(path_wrt, FREQ_EXT);
                     if (path_freq) {
                         
                         f_freq = fopen(path_freq, "rb");
@@ -236,7 +237,6 @@ static _modules_error _rle_decompress (char ** const path, BlocksSize *blocks_si
                             
                             // Reads the header of the FREQ file
                             if (fscanf(f_freq, "@%c@%lld", &mode, &length) == 2) {
-                                
                                 // Checks if the format is correct
                                 if ((mode == 'N') || (mode == 'R')) {
 
@@ -252,7 +252,6 @@ static _modules_error _rle_decompress (char ** const path, BlocksSize *blocks_si
                                             }
                                         }
                                         
-
                                         if (error) {
                                             free(sizes);
                                         }
@@ -296,16 +295,17 @@ static _modules_error _rle_decompress (char ** const path, BlocksSize *blocks_si
                     if (final_sizes->sizes) {
                         // Loop to execute block by block
                         for (long long i = 0; i < length && !error; ++i) {
-
+                            buffer = sequence = NULL;
                             // Loading rle block
-                            buffer = load_rle(f_rle, sizes[i], &error);
+                            error = load_rle(f_rle, sizes[i], &buffer);
                             if (!error) {
 
                                 // Decompressing the RLE block and loading the final size of the blocks after decompression to the array
-                                sequence = rle_block_decompressor(buffer, sizes[i], &size_sequence, final_sizes->sizes + i, &error);
+                                error = rle_block_decompressor(buffer, sizes[i], final_sizes->sizes + i, &sequence); 
+                                //sequence = rle_block_decompressor(buffer, sizes[i], &size_sequence, final_sizes->sizes + i, &error);
                                 if (!error) {
                                     // Writing the decompressed block in ORIGINAL file
-                                    if (fwrite(sequence, 1, size_sequence, f_wrt) != size_sequence) {
+                                    if (fwrite(sequence, 1, final_sizes->sizes[i], f_wrt) != final_sizes->sizes[i]) {
 
                                         error = _FILE_STREAM_FAILED;
 
@@ -740,8 +740,7 @@ _modules_error shafa_decompress (char ** const path, bool rle_decompression)
         error = _FILE_INACCESSIBLE;
     }
 
-    
-                                            
+    // If it's supposed to be RLE compressed as well                                            
     if (!error && rle_decompression) {   
 
        

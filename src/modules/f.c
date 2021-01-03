@@ -2,7 +2,7 @@
  *
  *  Author(s): Ana Teixeira, João Carvalho
  *  Created Date: 3 Dec 2020
- *  Updated Date: 2 Jan 2021
+ *  Updated Date: 3 Jan 2021
  *
  **************************************************/
 
@@ -86,7 +86,8 @@ void make_freq(const unsigned char* block, int* freq, int size_block)
  @param n_blocks Number of blocks
  @returns Error status
 */
-_modules_error write_freq(const int *freq, FILE* f_freq, const int block_num, const int n_blocks) {
+_modules_error write_freq(const int *freq, FILE* f_freq, const int block_num, const int n_blocks) 
+{
     int i, j, print = 0, print2 = 0, print3 = 0;
     _modules_error error = _SUCCESS;
     //Goes through the block of frequencies
@@ -121,15 +122,15 @@ _modules_error write_freq(const int *freq, FILE* f_freq, const int block_num, co
 \brief Prints the results of the program execution
  @param n_blocks Number of blocks
  @param block_sizes Block sizes of the original file
+ @param size_f size of the original file
  @param block_rle_sizes Block sizes of the rle file
- @param compression_ratio Compression rate
  @param total_t Time that the program took to execute
  @param path_rle Path to the rle file
  @param path_freq Path to the freq file from the txt file
  @param path_rle_freq Path to the freq file from the rle file
 */
-static inline void print_summary(long long n_blocks, unsigned long *block_sizes, unsigned long size_f, unsigned long *block_rle_sizes, double total_t, const char * const path_rle, const char * const path_freq, const char * const path_rle_freq) {
-
+static inline void print_summary(long long n_blocks, unsigned long *block_sizes, unsigned long size_f, unsigned long *block_rle_sizes, double total_t, const char * const path_rle, const char * const path_freq, const char * const path_rle_freq) 
+{
     printf(
         "Ana Rita Teixeira, a93276, MIEI/CD, 1-jan-2021\n"
         "João Carvalho, a93166, MIEI/CD, 1-jan-2021\n"

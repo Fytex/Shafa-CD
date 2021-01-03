@@ -11,7 +11,7 @@
 #include <stdint.h>
 #include <stdlib.h>
 
-#include "c.h"
+#include "utils/errors.h"
 #include "utils/extensions.h"
 #include "utils/multithread.h"
 
@@ -303,20 +303,18 @@ _modules_error shafa_compress(char ** const path)
 {
     FILE * fd_file, * fd_codes, * fd_shafa;
     Arguments * args;
-    clock_t t;
     float total_time;
     char * path_file = *path;
     char * path_codes;
     char * path_shafa;
     char * block_codes;
-    char mode;
     long long num_blocks;
     unsigned long block_size;
     int error = _SUCCESS;
     uint8_t * block_input;
     unsigned long * blocks_size = NULL, * blocks_input_size, * blocks_output_size;
 
-    t = clock();
+    clock_main_thread(START_CLOCK);
     
     // Create Codes's path string and Open Codes's handle
 
@@ -328,7 +326,7 @@ _modules_error shafa_compress(char ** const path)
 
         if (fd_codes) {
 
-            if (fscanf(fd_codes, "@%c@%lld", &mode, &num_blocks) == 2) {
+            if (fscanf(fd_codes, "@%*c@%lld", &num_blocks) == 1) {
 
                 // Open File's handle
                 fd_file = fopen(path_file, "rb");
@@ -458,10 +456,9 @@ _modules_error shafa_compress(char ** const path)
         *path = path_shafa;
         free(path_file);
 
-        t = clock() - t;
-        total_time = (((double) t) / CLOCKS_PER_SEC) * 1000;
+        total_time = clock_main_thread(STOP_CLOCK);
 
-        print_summary(num_blocks, blocks_input_size, blocks_output_size, total_time, path_shafa);
+        print_summary(num_blocks, blocks_input_size, blocks_output_size, total_time, path_shafa);     
     }
 
     if (blocks_size)

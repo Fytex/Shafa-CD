@@ -270,6 +270,7 @@ _modules_error freq_rle_compress(char** const path, const bool force_rle, const 
                                                                     //Calculates the compression rate
                                                                     compression = compresd - size_block_rle;
                                                                     compression_ratio = (float)compression/(float)compresd;
+                                                                    compression_ratio *= 100.0;
                                                                     
                                                                     //If the rate is lower than 5% and the user didn't force the rle file
                                                                     if(compression_ratio < 0.05 && !force_rle) compress_rle = false;
@@ -388,8 +389,10 @@ _modules_error freq_rle_compress(char** const path, const bool force_rle, const 
     else error = _FILE_INACCESSIBLE;
     //If there was no error
     if(!error){
-        //free(*path);
-        *path = path_rle;
+        if (compress_rle || force_rle) {
+            free(*path);
+            *path = path_rle;
+        }
         //Calculates the runtime
         t = clock() - t;
         //Calculates the time in milliseconds

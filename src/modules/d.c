@@ -70,7 +70,7 @@ static inline void print_summary (double time, unsigned long * decomp_sizes, uns
  @param buffer Address to a string to load a block of RLE content
  @returns Error status
 */
-static _modules_error load_rle (FILE* f_rle, unsigned long block_size, char ** buffer) 
+static _modules_error load_rle (FILE* f_rle, unsigned long block_size, uint8_t ** buffer) 
 {
     _modules_error error = _SUCCESS;
 
@@ -79,7 +79,7 @@ static _modules_error load_rle (FILE* f_rle, unsigned long block_size, char ** b
     if (*buffer) {
         // The function fread loads the said contents into the buffer
         // For the correct execution, the amount read by fread has to match the amount that was supposed to be read: block_size
-        if (fread(*buffer, 1, block_size, f_rle) != block_size) {
+        if (fread(*buffer, sizeof(uint8_t), block_size, f_rle) != block_size) {
             error = _FILE_STREAM_FAILED;
             *buffer = NULL; 
         }
@@ -101,8 +101,8 @@ typedef struct {
     FILE * f_wrt;
     unsigned long rle_block_size;
     unsigned long * final_sizes;
-    char * buffer;
-    char * sequence;
+    uint8_t * buffer;
+    uint8_t * sequence;
     
 } ArgumentsRLE;
 
@@ -117,8 +117,8 @@ static _modules_error rle_block_decompressor (void * _args)
     ArgumentsRLE * args = (ArgumentsRLE *) _args;  
     unsigned long block_size = args->rle_block_size;
     unsigned long * final_sizes = args->final_sizes;
-    char * buffer = args->buffer;
-    char * sequence;
+    uint8_t * buffer = args->buffer;
+    uint8_t * sequence;
     unsigned long orig_size, l;
     char simb;
     uint8_t n_reps;
@@ -206,14 +206,14 @@ static _modules_error write_decompressed_rle (void * const _args, _modules_error
     ArgumentsRLE * args = (ArgumentsRLE *) _args;
     FILE * const f_wrt = args->f_wrt;
     const unsigned long new_block_size = *args->final_sizes;
-    char * const sequence = args->sequence;
+    uint8_t * const sequence = args->sequence;
 
     if (!error) {
 
         if (!prev_error) {
 
             // Writing the decompressed block in ORIGINAL file
-            if (fwrite(sequence, 1, new_block_size, f_wrt) != new_block_size) 
+            if (fwrite(sequence, sizeof(uint8_t), new_block_size, f_wrt) != new_block_size) 
                 error = _FILE_STREAM_FAILED; 
 
         }
@@ -232,7 +232,7 @@ _modules_error rle_decompress (char ** path)
     _modules_error error = _SUCCESS;
     FILE *f_rle, *f_freq, *f_wrt;
     char *path_freq, *path_wrt, *path_rle;
-    char *buffer;
+    uint8_t * buffer;
     char mode;
     unsigned long *rle_sizes, *final_sizes;
     long long length;
@@ -446,9 +446,9 @@ typedef struct {
     char * cod_code;
 	unsigned long * rle_sizes;
 	unsigned long * final_sizes;
-	char * rle_decompressed;
-	char * shafa_decompressed;
-	char * shafa_code;
+	uint8_t * rle_decompressed;
+	uint8_t * shafa_decompressed;
+	uint8_t * shafa_code;
     bool rle_decompression;
 		
 } ArgumentsSHAFA;
@@ -514,7 +514,7 @@ static _modules_error create_tree (char * code, BTree * decoder)
  @param decomp Address to load a string with the decompressed contents
  @returns Error status
 */
-static _modules_error shafa_block_decompressor (char* shafa, unsigned long block_size, BTree decoder, char ** decomp) 
+static _modules_error shafa_block_decompressor (uint8_t * shafa, unsigned long block_size, BTree decoder, uint8_t ** decomp) 
 {
     BTree root;
     uint8_t mask;
@@ -563,6 +563,7 @@ static _modules_error process_shafa_decomp (void * _args) {
     _modules_error error;
     ArgumentsSHAFA * args_shafa = (ArgumentsSHAFA *) _args; 
     BTree decoder; 
+    ArgumentsRLE args_rle;
 
     error = create_tree(args_shafa->cod_code, &decoder);
 
@@ -575,12 +576,11 @@ static _modules_error process_shafa_decomp (void * _args) {
 
         if (!error && args_shafa->rle_decompression) {
 
-            ArgumentsRLE args_rle = {
+            args_rle = (ArgumentsRLE) {
                 .buffer = args_shafa->shafa_decompressed,
                 .rle_block_size = *args_shafa->rle_sizes,
                 .final_sizes = args_shafa->final_sizes
             };
-
 
             error = rle_block_decompressor(&args_rle);
             if (!error) {
@@ -603,7 +603,7 @@ static _modules_error write_decompressed_shafa (void * _args, _modules_error pre
 
     ArgumentsSHAFA * args_shafa = (ArgumentsSHAFA *) _args; 
     unsigned long size_wrt;
-    char * decomp;
+    uint8_t * decomp;
     FILE * f_wrt = args_shafa->f_wrt;
     bool rle_decompression = args_shafa->rle_decompression;
 
@@ -613,16 +613,13 @@ static _modules_error write_decompressed_shafa (void * _args, _modules_error pre
 
             size_wrt = (rle_decompression) ? (*args_shafa->final_sizes) : (*args_shafa->rle_sizes);
             decomp = (rle_decompression) ? (args_shafa->rle_decompressed) : (args_shafa->shafa_decompressed);
-            if (fwrite(decomp, 1, size_wrt, f_wrt) != size_wrt) 
+            if (fwrite(decomp, sizeof(uint8_t), size_wrt, f_wrt) != size_wrt) 
                 error = _FILE_STREAM_FAILED;
 
         }
 
         if (rle_decompression) 
-            free(args_shafa->rle_decompressed);
-
-        
-        
+            free(args_shafa->rle_decompressed);    
     } 
 
     free(_args);
@@ -631,13 +628,13 @@ static _modules_error write_decompressed_shafa (void * _args, _modules_error pre
 }
 
 
-
 _modules_error shafa_decompress (char ** const path, bool rle_decompression) 
 {
     _modules_error error;
     FILE *f_shafa, *f_cod, *f_wrt;
     char *path_cod, *path_wrt, *path_shafa, *path_tmp;
-    char *shafa_code, *cod_code;
+    uint8_t * shafa_code; 
+    char * cod_code;
     char mode;
     float total_time;
     long long length;
@@ -705,11 +702,11 @@ _modules_error shafa_decompress (char ** const path, bool rle_decompression)
                                                     sf_sizes[thread_idx] = sf_bsize;
 
                                                     // Allocates memory to a buffer in which will be loaded one block of shafa code                                                         
-                                                    shafa_code = malloc(sf_bsize + 1); 
+                                                    shafa_code = malloc(sf_bsize); 
                                                     if (shafa_code) {
 
                                                         // Reads a block of shafa code
-                                                        if (fread(shafa_code, 1, sf_bsize, f_shafa) == sf_bsize) { 
+                                                        if (fread(shafa_code, sizeof(uint8_t), sf_bsize, f_shafa) == sf_bsize) { 
 
                                                             // Reads the size of the decompressed shafa code and saves it
                                                             if (fscanf(f_cod, "@%lu", &sizes[thread_idx]) == 1) {

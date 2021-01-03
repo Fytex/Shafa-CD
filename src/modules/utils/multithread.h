@@ -1,6 +1,8 @@
 #ifndef UTILS_MULTITHREAD_H
 #define UTILS_MULTITHREAD_H
 
+#include <stdbool.h>
+
 #include "errors.h"
 
 #ifdef _WIN32
@@ -15,6 +17,8 @@
 #define _NO_MULTITHREAD // Avoid explicit if-statements if it is defined at compile time
 
 #endif
+
+extern bool NO_MULTITHREAD;
 
 typedef enum {STOP_CLOCK, START_CLOCK} CLOCK_ACTION;
 

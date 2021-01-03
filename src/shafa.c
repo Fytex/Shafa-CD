@@ -19,6 +19,7 @@
 #include "modules/utils/file.h"
 #include "modules/utils/errors.h"
 #include "modules/utils/extensions.h"
+#include "modules/utils/multithread.h"
 
 
 typedef struct {
@@ -41,8 +42,11 @@ static bool parse(const int argc, char * const argv[], Options * const options, 
 
     for (int i = 1; i < argc; ++i) { // argv[0] == "./shafa"
         key = argv[i];
-        
-        if (key[0] != '-') {
+
+        if (strcmp(key, "--no-multithread") == 0)
+            NO_MULTITHREAD = true;
+
+        else if (key[0] != '-') {
             if (*file) // There is a path to file already as an argument
                 return false;
 

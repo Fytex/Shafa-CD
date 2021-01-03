@@ -16,7 +16,7 @@
 #include "multithread.h"
 
 #ifdef THREADS
-int NO_MULTITHREAD = 0;
+bool NO_MULTITHREAD = false;
 #include <unistd.h>
 
 #ifdef POSIX_THREADS
@@ -24,7 +24,7 @@ int NO_MULTITHREAD = 0;
 #endif
 
 #else
-int NO_MULTITHREAD = 1;
+bool NO_MULTITHREAD = true;
 
 #endif
 

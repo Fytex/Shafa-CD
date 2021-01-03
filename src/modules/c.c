@@ -19,13 +19,18 @@
 #define NUM_SYMBOLS 256
 #define NUM_OFFSETS 8
 
-
+/**
+\brief Struct with the symbol code, next and index
+*/
 typedef struct {
     int index;
     int next; 
     uint8_t code[MAX_CODE_INT + 1];
 } CodesIndex;
 
+/**
+\brief Struct with the parameters that are going to multithread
+*/
 typedef struct {
     unsigned long block_size;
     FILE * fd_shafa;
@@ -35,7 +40,13 @@ typedef struct {
     unsigned long * new_block_size;
 } Arguments;
 
-
+/**
+\brief Aplies algorithm to make the symbols' codification
+ @param table Table of codes
+ @param block_input Block with original file's bytes
+ @param block_size Block size 
+ @param new_block_size Block size after codification
+ */
 static uint8_t * binary_coding(CodesIndex * const table, const uint8_t * restrict block_input, const unsigned long block_size, unsigned long * const new_block_size)
 {
     CodesIndex * symbol;
@@ -69,7 +80,10 @@ static uint8_t * binary_coding(CodesIndex * const table, const uint8_t * restric
     return block_output;
 }
 
-
+/**
+\brief Generates table of codes
+ @param _args Structure with all arguments needed to this function 
+*/
 static _modules_error compress_to_buffer(void * const _args)
 {
     Arguments * args = (Arguments *) _args;
@@ -218,7 +232,12 @@ static _modules_error compress_to_buffer(void * const _args)
     return _SUCCESS;
 }
 
-
+/**
+\brief Writes codification to file
+ @param _args Structure with all arguments needed to this function 
+ @param prev_error Error before calling this functione
+ @param error Error after calling this function
+*/
 static _modules_error write_shafa(void * const _args, _modules_error prev_error, _modules_error error)
 {
     Arguments * args = (Arguments *) _args;
@@ -244,8 +263,14 @@ static _modules_error write_shafa(void * const _args, _modules_error prev_error,
     free(_args);
     return error;
 }
-
-
+/**
+\brief Prints the results of the program execution
+ @param num_blocks Number of blocks analysed
+ @param blocks_input_size Block sizes previous to oodification
+ @param blocks_output_size Block sizes after the codification
+ @param total_time Time that the program took to execute
+ @param path The path to the generated file
+*/
 static inline void print_summary(const long long num_blocks, const unsigned long * const blocks_input_size, const unsigned long * const blocks_output_size, const double total_time, const char * const path)
 {
     unsigned long block_input_size, block_output_size;
@@ -270,7 +295,10 @@ static inline void print_summary(const long long num_blocks, const unsigned long
 }
 
 
-
+/**
+\brief Compresses a block
+* @param path Path to file
+*/
 _modules_error shafa_compress(char ** const path)
 {
     FILE * fd_file, * fd_codes, * fd_shafa;

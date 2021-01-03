@@ -164,7 +164,7 @@ float clock_main_thread(CLOCK_ACTION action)
 
     if (action == START_CLOCK) {
         start_time = clock();
-        return start_time != -1 ? 0 : -1
+        return start_time != -1 ? 0 : -1;
     }
     else {
         if (start_time == -1)

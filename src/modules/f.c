@@ -152,6 +152,7 @@ static inline void print_summary(long long n_blocks, unsigned long *block_sizes,
         for(long long j = 0; j<n_blocks; j++) size_rle += block_rle_sizes[j];
         compression = size_f - size_rle;
         compression_ratio = (float)compression/(float)size_f; 
+        compression_ratio*=100.0;
         printf("RLE Compression: %s (%f%% compression)\n", path_rle, compression_ratio);
         
         printf("Size of blocks analyzed in the RLE file: ");
@@ -211,171 +212,180 @@ _modules_error freq_rle_compress(char** const path, const bool force_rle, const 
         //Creating path to rle file
         path_rle = add_ext(*path, RLE_EXT);
         if(path_rle){
-            
-            //Opening rle file
-            f_rle = fopen(path_rle, "wb");
-            if(f_rle) {
-                
-                //Creating path to freq file
-                path_rle_freq = add_ext(path_rle, FREQ_EXT);
-                if(path_rle_freq) {
-                    
-                    //Opening freq file
-                    f_rle_freq = fopen(path_rle_freq, "wb");
-                    if(f_rle_freq) {
-                        
-                        //Creating path to forced freq file
-                        path_freq = add_ext(*path, FREQ_EXT);
-                        if(path_freq) {
-                            
-                            //Opening forced freq file
-                            f_freq = fopen(path_freq, "wb");
-                            if(f_freq) {
-                                //Getting number of blocks of the txt file
-                                n_blocks = fsize(f, *path, &the_block_size, &size_of_last_block);
-                                //Getting the size of the txt file
-                                size_f = (n_blocks-1) * (int)the_block_size + (int)size_of_last_block;
-                                //If txt file size is at least 1KiB
-                                if(size_f >= _1KiB){        
+            //Creating path to freq file
+            path_rle_freq = add_ext(path_rle, FREQ_EXT);
+            if(path_rle_freq) { 
+                //Creating path to forced freq file
+                path_freq = add_ext(*path, FREQ_EXT);
+                if(path_freq) {
+                    //Getting number of blocks of the txt file
+                    n_blocks = fsize(f, *path, &the_block_size, &size_of_last_block);
+                    //Getting the size of the txt file
+                    size_f = (n_blocks-1) * (int)the_block_size + (int)size_of_last_block;
+                    //If txt file size is at least 1KiB
+                    if(size_f >= _1KiB){        
                                     
-                                    compresd = the_block_size;
-                                    size_block_rle = 0;
-                                    //Allocates memory for the array that will contain the block sizes of the txt file
-                                    block_sizes = malloc(n_blocks * sizeof(unsigned long));
-                                    if(block_sizes) {
-                                        //Allocates memory for the array that will contain the block sizes of the rle file
-                                        block_rle_sizes = malloc(n_blocks * sizeof(unsigned long));
-                                        if(block_rle_sizes) {
-                                            //Divides the buffer into blocks
-                                            for (block_num = 0, s = 0; block_num < n_blocks; ++block_num) {
-                                                //If it's the last block
-                                                if(block_num == n_blocks -1) {
-                                                    compresd = size_f - s;                                            
-                                                }
-                                                //Loads size of the current block of the txt file to the respective array
-                                                block_sizes[block_num] = compresd;
-                                                //Allocates memory for the array that will contain the content of the txt file
-                                                buffer = malloc(compresd * sizeof(uint8_t));
-                                                if(buffer) {
-                                                    //Loads the content of the block of the txt file into the buffer
-                                                    if(fread(buffer, sizeof(uint8_t), compresd, f) == compresd) {
-                                                        //Allocates memory for the array that will contain the compressed content of the buffer
-                                                        block = malloc(compresd * 2.1);
-                                                        if(block) {
-                                                            if(compress_rle) {
-                                                                //Compresses the current block and returns its size
-                                                                size_block_rle = block_compression(buffer, block, compresd, size_f);
-                                                                //If it's the first block
-                                                                if(block_num == 0) {
-                                                                    //Calculates the compression rate
-                                                                    compression = compresd - size_block_rle;
-                                                                    compression_ratio = (float)compression/(float)compresd;
-                                                                    compression_ratio *= 100.0;
+                        compresd = the_block_size;
+                        size_block_rle = 0;
+                        //Allocates memory for the array that will contain the block sizes of the txt file
+                        block_sizes = malloc(n_blocks * sizeof(unsigned long));
+                        if(block_sizes) {
+                            //Allocates memory for the array that will contain the block sizes of the rle file
+                            block_rle_sizes = malloc(n_blocks * sizeof(unsigned long));
+                            if(block_rle_sizes) {
+                                //Divides the buffer into blocks
+                                for (block_num = 0, s = 0; block_num < n_blocks; ++block_num) {
+                                    //If it's the last block
+                                    if(block_num == n_blocks -1) {
+                                        compresd = size_f - s;                                            
+                                    }
+                                    //Loads size of the current block of the txt file to the respective array
+                                    block_sizes[block_num] = compresd;
+                                    //Allocates memory for the array that will contain the content of the txt file
+                                    buffer = malloc(compresd * sizeof(uint8_t));
+                                    if(buffer) {
+                                        //Loads the content of the block of the txt file into the buffer
+                                        if(fread(buffer, sizeof(uint8_t), compresd, f) == compresd) {
+                                            //Allocates memory for the array that will contain the compressed content of the buffer
+                                            block = malloc(compresd * 2.1);
+                                            if(block) {
+                                                if(compress_rle) {
+                                                    //Compresses the current block and returns its size
+                                                    size_block_rle = block_compression(buffer, block, compresd, size_f);
+                                                    //If it's the first block
+                                                    if(block_num == 0) {
+                                                        //Calculates the compression rate
+                                                        compression = compresd - size_block_rle;
+                                                        compression_ratio = (float)compression/(float)compresd;
                                                                     
-                                                                    //If the rate is lower than 5% and the user didn't force the rle file
-                                                                    if(compression_ratio < 0.05 && !force_rle) compress_rle = false;
+                                                                    
+                                                        //If the rate is lower than 5% and the user didn't force the rle file
+                                                        if(compression_ratio < 0.05 && !force_rle) compress_rle = false;
+                                                    }
+                                                }
+
+                                                //Opening rle file
+                                                if(!f_rle && compress_rle) {
+                                                    f_rle = fopen(path_rle, "wb");
+                                                    if(!f_rle) {
+                                                        error = _FILE_INACCESSIBLE;
+                                                        break;
+                                                    }
+                                                }
+                                                //Opening rle freq file
+                                                if(!f_rle_freq && compress_rle) {
+                                                    f_rle_freq = fopen(path_rle_freq, "wb");
+                                                    if(!f_rle_freq) {
+                                                        error = _FILE_INACCESSIBLE;
+                                                        break;
+                                                    }
+                                                }
+                                                //Opening freq file
+                                                if(!f_freq && (force_freq || (!compress_rle))) {
+                                                f_freq = fopen(path_freq, "wb");
+                                                    if(!f_freq) {
+                                                        error = _FILE_INACCESSIBLE;
+                                                        break;
+                                                    }
+                                                }
+                                                                        
+                                                //If it's the first block and the user forced the rle file
+                                                if(block_num == 0 && compress_rle) {
+                                                    //Prints the header of the freq file: @R@n_blocks
+                                                    print = fprintf(f_rle_freq,"@R@%lld", n_blocks);
+                                                }
+                                                //If it's the first block and the user didn't forced the rle file or forced the freq file
+                                                if(block_num == 0 && (!compress_rle || force_freq)) {
+                                                    //Prints the header of the freq file: @N@n_blocks
+                                                    print = fprintf(f_freq,"@N@%lld", n_blocks);
+                                                }
+                                                //If the fprintf went well
+                                                if(print >= 4) {
+                                                    //Allocates memory for all the 256 symbol's frequencies
+                                                    int *freq = malloc(sizeof(int)*256);
+                                                    if(freq) {
+                                                        //If it can be compressed
+                                                        if(compress_rle) {
+                                                                        
+                                                            //Loads size of the current block of the rle file to the respective array
+                                                            block_rle_sizes[block_num] = size_block_rle;
+                                                            //Writes each compressed block in the rle file
+                                                            int res = fwrite(block, 1, size_block_rle, f_rle);
+                                                            if(res == size_block_rle){
+                                                                //Generates an array of frequencies of the block (rle file content)
+                                                                make_freq(block, freq, size_block_rle);
+                                                                //Prints the size of the current compressed block in the freq file
+                                                                if(fprintf(f_rle_freq, "@%ld@", size_block_rle) >= 2) {
+                                                                    //Writes each frequencies block in the freq file from the rle file
+                                                                    error = write_freq(freq, f_rle_freq, block_num, n_blocks);
                                                                 }
-                                                            }
-                                                    
-                                                            //If it's the first block and the user forced the rle file
-                                                            if(block_num == 0 && compress_rle) {
-                                                                //Prints the header of the freq file: @R@n_blocks
-                                                                print = fprintf(f_rle_freq,"@R@%lld", n_blocks);
-                                                            }
-                                                            //If it's the first block and the user didn't forced the rle file or forced the freq file
-                                                            if(block_num == 0 && (!compress_rle || force_freq)) {
-                                                                //Prints the header of the freq file: @N@n_blocks
-                                                                print = fprintf(f_freq,"@N@%lld", n_blocks);
-                                                            }
-                                                            //If the fprintf went well
-                                                            if(print >= 4) {
-                                                                //Allocates memory for all the 256 symbol's frequencies
-                                                                int *freq = malloc(sizeof(int)*256);
-                                                                if(freq) {
-                                                                    //If it can be compressed
-                                                                    if(compress_rle) {
-                                                                        //Loads size of the current block of the rle file to the respective array
-                                                                        block_rle_sizes[block_num] = size_block_rle;
-                                                                        //Writes each compressed block in the rle file
-                                                                        int res = fwrite(block, 1, size_block_rle, f_rle);
-                                                                        if(res == size_block_rle){
-                                                                            //Generates an array of frequencies of the block (rle file content)
-                                                                            make_freq(block, freq, size_block_rle);
-                                                                            //Prints the size of the current compressed block in the freq file
-                                                                            if(fprintf(f_rle_freq, "@%ld@", size_block_rle) >= 2) {
-                                                                                //Writes each frequencies block in the freq file from the rle file
-                                                                                error = write_freq(freq, f_rle_freq, block_num, n_blocks);
-                                                                            }
-                                                                            else error = _FILE_STREAM_FAILED;
-                                                                
-                                                                        }
-                                                                        else error = _FILE_STREAM_FAILED;
-                                                                    }
-                                                                    //If it can't be compressed or if the user forced the freq file
-                                                                    if(!compress_rle || force_freq) {
-                                                                        //Generates an array of frequencies of the block (txt file content)
-                                                                        make_freq(buffer, freq, compresd);
-                                                                        //Prints the current block size in the freq file
-                                                                        if(fprintf(f_freq, "@%ld@", compresd) >= 2) {
-                                                                            //Writes each frequencies block in the freq file from the txt file
-                                                                            error = write_freq(freq, f_freq, block_num, n_blocks);
-                                                                            
-                                                                        }
-                                                                        else error = _FILE_STREAM_FAILED;
-                                                            
-                                                                    }
-                                                                    free(freq);
-                                                    
-                                                                }
-                                                                else error = _LACK_OF_MEMORY;
+                                                                else error = _FILE_STREAM_FAILED;
+                                                        
                                                             }
                                                             else error = _FILE_STREAM_FAILED;
-
-                                                        
-                                                            free(block);
                                                         }
-                                                        else error = _LACK_OF_MEMORY;
+                                                        //If it can't be compressed or if the user forced the freq file
+                                                        if(!compress_rle || force_freq) {
+                                                                        
+                                                            //Generates an array of frequencies of the block (txt file content)
+                                                            make_freq(buffer, freq, compresd);
+                                                            //Prints the current block size in the freq file
+                                                            if(fprintf(f_freq, "@%ld@", compresd) >= 2) {
+                                                                //Writes each frequencies block in the freq file from the txt file
+                                                                error = write_freq(freq, f_freq, block_num, n_blocks);
+                                                                            
+                                                            }
+                                                            else error = _FILE_STREAM_FAILED;
+                                                            
+                                                        }
+                                                        free(freq);
+                                                    
+                                                    }
+                                                    else error = _LACK_OF_MEMORY;
+                                                }
+                                                else error = _FILE_STREAM_FAILED;
+
+                                            
+                                                free(block);
+                                            }
+                                            else error = _LACK_OF_MEMORY;
 
                                                         
-                                                    }
-                                                    else error = _FILE_STREAM_FAILED;
-
-                                                    s+=compresd;
-                                                    free(buffer);
-                                                }
-                                                else error = _LACK_OF_MEMORY;
-                                                
-                                            }
                                         }
-                                        else error = _LACK_OF_MEMORY;
-                                    
-                                    }
-                                    else error = _LACK_OF_MEMORY;  
-                                }
-                                else error = _FILE_TOO_SMALL; //If the file is too small
-                                fclose(f_freq);
-                            }
-                            else error = _FILE_INACCESSIBLE;
-                            if(error || (!force_freq && (force_rle || compress_rle))){
-                                free(path_freq);
-                                path_freq = NULL;
-                            }
-                        }
-                        else error = _LACK_OF_MEMORY;
+                                        else error = _FILE_STREAM_FAILED;
 
-                        fclose(f_rle_freq);
+                                        s+=compresd;
+                                        free(buffer);
+                                    }
+                                    else error = _LACK_OF_MEMORY;
+                                                
+                                }
+                                if(f_rle) fclose(f_rle);
+                                if(f_freq) fclose(f_freq);
+                                if(f_rle_freq) fclose(f_rle_freq);
+                            }
+                            else error = _LACK_OF_MEMORY;
+                                    
+                        }
+                        else error = _LACK_OF_MEMORY;  
                     }
-                    else error = _FILE_INACCESSIBLE;
-                    if(error || (!force_rle && !compress_rle)){
-                        free(path_rle_freq);
-                        path_rle_freq = NULL;
+                    else error = _FILE_TOO_SMALL; //If the file is too small
+                            
+                    if(error || (!force_freq && (force_rle || compress_rle))){
+                        free(path_freq);
+                        path_freq = NULL;
                     }
                 }
                 else error = _LACK_OF_MEMORY;
-
-                fclose(f_rle);
+            
+                if(error || (!force_rle && !compress_rle)){
+                    free(path_rle_freq);
+                    path_rle_freq = NULL;
+                }
             }
-            else error = _FILE_INACCESSIBLE;
+            else error = _LACK_OF_MEMORY;
+
+            
             if(error || (!compress_rle && !force_rle)){
                 free(path_rle);
                 path_rle = NULL;

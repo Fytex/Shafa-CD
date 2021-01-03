@@ -18,6 +18,7 @@
 #include <stdint.h>
 #include <stdbool.h>
 
+
 /**
 \brief Compresses a block
  @param buffer Array loaded with the original file content
@@ -127,7 +128,7 @@ _modules_error write_freq(const int *freq, FILE* f_freq, const int block_num, co
  @param path_freq Path to the freq file from the txt file
  @param path_rle_freq Path to the freq file from the rle file
 */
-static inline void print_summary(long long n_blocks, unsigned long *block_sizes, unsigned long *block_rle_sizes, float compression_ratio, double total_t, const char * const path_rle, const char * const path_freq, const char * const path_rle_freq) {
+static inline void print_summary(long long n_blocks, unsigned long *block_sizes, unsigned long size_f, unsigned long *block_rle_sizes, double total_t, const char * const path_rle, const char * const path_freq, const char * const path_rle_freq) {
 
     printf(
         "Ana Rita Teixeira, a93276, MIEI/CD, 1-jan-2021\n"
@@ -144,22 +145,33 @@ static inline void print_summary(long long n_blocks, unsigned long *block_sizes,
         else printf("%lu/", block_sizes[i]);
     }
     
-    if(path_rle)
+    if(path_rle) {
+        unsigned long size_rle = 0;
+        long compression;
+        float compression_ratio;
+        for(long long j = 0; j<n_blocks; j++) size_rle += block_rle_sizes[j];
+        compression = size_f - size_rle;
+        compression_ratio = (float)compression/(float)size_f; 
         printf("RLE Compression: %s (%f%% compression)\n", path_rle, compression_ratio);
         
-    printf("Size of blocks analyzed in the RLE file: ");
-    //Cycle to print the block sizes of the rle file
-    for(long long i = 0; i < n_blocks; i++) {
-        if(i == n_blocks - 1)
-            printf("%lu bytes\n", block_rle_sizes[i]);
-        else printf("%lu/", block_rle_sizes[i]);
-    }
+        printf("Size of blocks analyzed in the RLE file: ");
+        //Cycle to print the block sizes of the rle file
     
-    printf(
-        "Module runtime (milliseconds): %f\n"
-        "Generated files: %s, %s\n",
-        total_t, path_freq, path_rle_freq
-    );
+        for(long long i = 0; i < n_blocks; i++) {
+            if(i == n_blocks - 1)
+                printf("%lu bytes\n", block_rle_sizes[i]);
+            else printf("%lu/", block_rle_sizes[i]);
+        }
+    }
+    printf("Module runtime (milliseconds): %f\n", total_t);
+    printf("Generated files: ");
+
+    if(path_freq && path_rle_freq)
+        printf("%s, %s\n", path_freq, path_rle_freq);
+    else if(path_freq)
+        printf("%s\n", path_freq);
+    else if(path_rle_freq)
+        printf("%s\n", path_rle_freq);
 }
 
 /**
@@ -176,12 +188,13 @@ _modules_error freq_rle_compress(char** const path, const bool force_rle, const 
     double total_t;
     float compression_ratio;
     uint8_t *buffer, *block;
-    int size_f, print;
+    int  print;
+    long compression;
     long long n_blocks, block_num;
     bool compress_rle;
     long size_of_last_block;
     char *path_rle = NULL, *path_rle_freq = NULL, *path_freq = NULL; 
-    unsigned long the_block_size, size_block_rle, compresd, *block_sizes, *block_rle_sizes, s;
+    unsigned long size_f, the_block_size, size_block_rle, compresd, *block_sizes, *block_rle_sizes, s;
     FILE *f, *f_rle=NULL, *f_rle_freq=NULL, *f_freq=NULL;
 
     compress_rle = true;
@@ -247,18 +260,21 @@ _modules_error freq_rle_compress(char** const path, const bool force_rle, const 
                                                     //Loads the content of the block of the txt file into the buffer
                                                     if(fread(buffer, sizeof(uint8_t), compresd, f) == compresd) {
                                                         //Allocates memory for the array that will contain the compressed content of the buffer
-                                                        block = malloc(compresd * 3);
+                                                        block = malloc(compresd * 2.1);
                                                         if(block) {
-                                                            //Compresses the current block and returns its size
-                                                            size_block_rle = block_compression(buffer, block, compresd, size_f);
-                                                            //If it's the first block
-                                                            if(block_num == 0) {
-                                                                //Calculates the compression rate
-                                                                compression_ratio = (float)(compresd - size_block_rle)/compresd;
-                                                                //If the rate is lower than 5% and the user didn't force the rle file
-                                                                if(compression_ratio < 0.05 && !force_rle) compress_rle = false;
+                                                            if(compress_rle) {
+                                                                //Compresses the current block and returns its size
+                                                                size_block_rle = block_compression(buffer, block, compresd, size_f);
+                                                                //If it's the first block
+                                                                if(block_num == 0) {
+                                                                    //Calculates the compression rate
+                                                                    compression = compresd - size_block_rle;
+                                                                    compression_ratio = (float)compression/(float)compresd;
+                                                                    
+                                                                    //If the rate is lower than 5% and the user didn't force the rle file
+                                                                    if(compression_ratio < 0.05 && !force_rle) compress_rle = false;
+                                                                }
                                                             }
-                                                            
                                                     
                                                             //If it's the first block and the user forced the rle file
                                                             if(block_num == 0 && compress_rle) {
@@ -359,7 +375,7 @@ _modules_error freq_rle_compress(char** const path, const bool force_rle, const 
                 fclose(f_rle);
             }
             else error = _FILE_INACCESSIBLE;
-            if(error){
+            if(error || (!compress_rle && !force_rle)){
                 free(path_rle);
                 path_rle = NULL;
             }
@@ -372,13 +388,13 @@ _modules_error freq_rle_compress(char** const path, const bool force_rle, const 
     else error = _FILE_INACCESSIBLE;
     //If there was no error
     if(!error){
-        free(*path);
+        //free(*path);
         *path = path_rle;
         //Calculates the runtime
         t = clock() - t;
         //Calculates the time in milliseconds
         total_t = (((double) t) / CLOCKS_PER_SEC) * 1000;
-        print_summary(n_blocks, block_sizes, block_rle_sizes, compression_ratio, total_t, path_rle,  path_freq, path_rle_freq);
+        print_summary(n_blocks, block_sizes, size_f, block_rle_sizes, total_t, path_rle,  path_freq, path_rle_freq);
         free(block_sizes);
         free(block_rle_sizes);
         if(path_freq) free(path_freq);

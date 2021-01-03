@@ -32,7 +32,7 @@ static pthread_t THREAD = 0;
 static uintptr_t wrapper(Data * data)
 {
     pthread_t prev_thread;
-    uintptr_t prev_error;
+    uintptr_t prev_error = 0;
     int error;
 
     error = (*(data->process))(data->args);

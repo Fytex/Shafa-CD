@@ -39,7 +39,7 @@ typedef enum
  @param new_path The path to the generated file
  @param algo The type of decoding that occured
 */
-static inline void print_summary (double time, unsigned long * decomp_sizes, unsigned long * new_sizes, long long length, char* new_path, Algorithm algo) 
+static inline void print_summary (double time, unsigned long * decomp_sizes, unsigned long * new_sizes, unsigned long long length, char* new_path, Algorithm algo) 
 {
     printf(
         "Alexandre Martins, a93242, MIEI/CD, 1-JAN-2021\n"
@@ -53,8 +53,8 @@ static inline void print_summary (double time, unsigned long * decomp_sizes, uns
     else 
         printf("Module: D (SHAFA & RLE decoding)\n");
 
-    for (long long i = 0; i < length; ++i) 
-        printf("Size before/after generating file (block %lld): %lu/%lu\n", i + 1, decomp_sizes[i], new_sizes[i]);
+    for (unsigned long long i = 0; i < length; ++i) 
+        printf("Size before/after generating file (block %lu): %lu/%lu\n", i + 1, decomp_sizes[i], new_sizes[i]);
     printf(
         "Module runtime (in milliseconds): %f\n"
         "Generated file %s\n", 
@@ -235,7 +235,7 @@ _modules_error rle_decompress (char ** path)
     uint8_t * buffer;
     char mode;
     unsigned long *rle_sizes, *final_sizes;
-    long long length;
+    unsigned long long length;
     float total_time;
     ArgumentsRLE * args;
     
@@ -263,7 +263,7 @@ _modules_error rle_decompress (char ** path)
                     if (f_freq) {
 
                         // Reads the header of the FREQ file
-                        if (fscanf(f_freq, "@%c@%lld", &mode, &length) == 2) {   
+                        if (fscanf(f_freq, "@%c@%lu", &mode, &length) == 2) {   
 
                             if (mode == 'R') {
 
@@ -272,7 +272,7 @@ _modules_error rle_decompress (char ** path)
                                 if (rle_sizes) {
 
                                     // Loads the sizes to the array
-                                    for (long long i = 0; i < length && !error; ++i) {
+                                    for (unsigned long long i = 0; i < length && !error; ++i) {
                                         if (fscanf(f_freq, "@%lu@%*[^@]", rle_sizes + i) != 1)                                          
                                             error = _FILE_STREAM_FAILED;       
                                                                                                                    
@@ -314,7 +314,7 @@ _modules_error rle_decompress (char ** path)
                     if (final_sizes) {
 
                         // Loop to execute block by block
-                        for (long long thread_idx = 0; thread_idx < length; ++thread_idx) {
+                        for (unsigned long long thread_idx = 0; thread_idx < length; ++thread_idx) {
                                 
                             // Loading rle block
                             error = load_rle(f_rle, rle_sizes[thread_idx], &buffer);
@@ -637,7 +637,7 @@ _modules_error shafa_decompress (char ** const path, bool rle_decompression)
     char * cod_code;
     char mode;
     float total_time;
-    long long length;
+    unsigned long long length;
     unsigned long *sizes, *sf_sizes, *final_sizes;
     unsigned long sf_bsize;
     ArgumentsSHAFA * args;
@@ -673,10 +673,10 @@ _modules_error shafa_decompress (char ** const path, bool rle_decompression)
                     if (f_cod) {
 
                         // Reading header of shafa file
-                        if (fscanf(f_shafa, "@%lld", &length) == 1) {
+                        if (fscanf(f_shafa, "@%lu", &length) == 1) {
 
                             // Reading header of cod file
-                            if (fscanf(f_cod, "@%c@%lld", &mode, &length) == 2) {
+                            if (fscanf(f_cod, "@%c@%lu", &mode, &length) == 2) {
                                 // Checking the mode of the file
                                 if ((mode == 'N' && !rle_decompression) || (mode == 'R')) {   
 
@@ -694,7 +694,7 @@ _modules_error shafa_decompress (char ** const path, bool rle_decompression)
                                                     error = _LACK_OF_MEMORY;
                                             }  
 
-                                            for (long long thread_idx = 0; thread_idx < length && !error; ++thread_idx) {
+                                            for (unsigned long long thread_idx = 0; thread_idx < length && !error; ++thread_idx) {
 
                                                 // Reads the size of the shafa blockss
                                                 if (fscanf(f_shafa, "@%lu@", &sf_bsize) == 1) {

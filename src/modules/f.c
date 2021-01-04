@@ -159,7 +159,7 @@ static inline void print_summary(unsigned long long n_blocks, unsigned long *blo
         printf("Size of blocks analyzed in the RLE file: ");
         //Cycle to print the block sizes of the rle file
     
-        for(long long i = 0; i < n_blocks; i++) {
+        for(unsigned long long i = 0; i < n_blocks; i++) {
             if(i == n_blocks - 1)
                 printf("%lu bytes\n", block_rle_sizes[i]);
             else printf("%lu/", block_rle_sizes[i]);

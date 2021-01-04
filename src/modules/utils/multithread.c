@@ -19,9 +19,13 @@
 bool NO_MULTITHREAD = false;
 #include <unistd.h>
 
-#ifdef POSIX_THREADS
-#include <pthread.h>
-#endif
+    #ifdef POSIX_THREADS
+    #include <pthread.h>
+
+    #elif defined(WIN_THREADS)
+    #include <windows.h>
+
+    #endif
 
 #else
 bool NO_MULTITHREAD = true;
@@ -35,11 +39,13 @@ typedef struct {
     pthread_t prev_thread;
     uintptr_t (* process)(void *);
     uintptr_t (* write)(void *, _modules_error, _modules_error);
-#endif //POSIX_THREADS
-
+#elif defined(WIN_THREADS)
+    HANDLE prev_hthread;
+    DWORD (* process)(void *);
+    DWORD (* write)(void *, _modules_error, _modules_error);
+#endif
 
     void * args;
-
 } Data;
 #endif //THREADS
 
@@ -49,15 +55,15 @@ typedef struct {
 // Why? Use same multithread[_create | _wait]'s function assignature for Windows and Posix
 #ifdef POSIX_THREADS
 static pthread_t THREAD = 0;
+#elif defined(WIN_THREADS)
+static HANDLE HTHREAD = 0;
 #endif
 
 struct timespec start, finish;
 
-#ifdef THREADS
+#ifdef POSIX_THREADS
 static uintptr_t wrapper(Data * data)
 {
-
-#ifdef POSIX_THREADS
     pthread_t prev_thread;
     uintptr_t error, prev_error = _SUCCESS; // Define as _SUCCESS in case there is no prev_hthread
 
@@ -67,9 +73,6 @@ static uintptr_t wrapper(Data * data)
     // In case of error in `data->process` it still joins the thread for resource cleanup
     if (prev_thread && pthread_join(prev_thread, (void **) &prev_error))
         prev_error = _THREAD_TERMINATION_FAILED;
-#endif  
-
-
 
     error = (*(data->write))(data->args, prev_error, error);
     
@@ -77,11 +80,42 @@ static uintptr_t wrapper(Data * data)
 
     return prev_error ? prev_error : error;
 }
-#endif //THREADS
+#elif defined(WIN_THREADS)
+static DWORD WINAPI wrapper(LPVOID _data)
+{
+    Data * data = (Data *) _data;
+    HANDLE prev_hthread;
+    DWORD error, prev_error = _SUCCESS; // Define as _SUCCESS in case there is no prev_hthread
 
-// Attention: Be careful that sizeof(void *) must be >= sizeof(_modules_error) 
-// otherwise make sure the value returned by those funtions are always <= sizeof(void *)
-// Why? Because we use a hack to consider a pointer as an _modules_error to pass between threads
+    error = (*(data->process))(data->args);
+    prev_hthread = data->prev_hthread;
+
+    if (prev_hthread) { // In case of error in `data->process` it still joins the thread for resource cleanup
+        if (WaitForSingleObject(prev_hthread, INFINITE) != WAIT_OBJECT_0 || !GetExitCodeThread(prev_hthread, &prev_error))
+            prev_error = _THREAD_TERMINATION_FAILED;
+        
+        CloseHandle(prev_hthread);
+    }
+
+    error = (*(data->write))(data->args, prev_error, error);
+    
+    HeapFree(GetProcessHeap(), 0, data);
+
+    return error;
+}
+#endif
+
+/*
+                                      POSIX CAUTION
+       Attention: Be careful that sizeof(void *) must be >= sizeof(_modules_error) 
+    otherwise make sure the value returned by those funtions are always <= sizeof(void *)
+
+                                     WINDOWS CAUTION
+             Attention: Be careful that sizeof(DWORD) must be >= sizeof(int) 
+     otherwise make sure the value returned by those funtions are always <= sizeof(DWORD)
+
+ Why? Because we use a hack to consider a pointer as an _modules_error to pass between threads
+*/
 _modules_error multithread_create(_modules_error (* process)(void *), _modules_error (* write)(void *, _modules_error, _modules_error), void * args)
 {
 
@@ -100,6 +134,9 @@ _modules_error multithread_create(_modules_error (* process)(void *), _modules_e
 #ifdef POSIX_THREADS
 
     Data * data = malloc(sizeof(Data));
+    
+    if (!data)
+        return _LACK_OF_MEMORY;
 
     * data = (Data) {
         .prev_thread = THREAD,
@@ -113,9 +150,38 @@ _modules_error multithread_create(_modules_error (* process)(void *), _modules_e
         return _THREAD_CREATION_FAILED;
     }
 
+#elif defined(WIN_THREADS)
+
+    HANDLE handle;
+    Data * data = HeapAlloc(GetProcessHeap(), 0, sizeof(Data));
+
+    if (!data)
+        return _LACK_OF_MEMORY;
+
+    * data = (Data) {
+        .prev_hthread = HTHREAD,
+        .process = (DWORD (*) (void *)) process,
+        .write = (DWORD (*) (void *, _modules_error, _modules_error)) write,
+        .args = args
+    };
+    
+    handle = CreateThread( 
+        NULL,                   // default security attributes
+        0,                      // use default stack size  
+        wrapper,                // thread function name
+        data,                   // argument to thread function 
+        0,                      // use default creation flags 
+        NULL                    // returns the thread identifier 
+    );
+
+    if (handle)
+        HTHREAD = handle;
+    else {
+        HeapFree(GetProcessHeap(), 0, data);
+        return _THREAD_CREATION_FAILED;
+    }
+
 #endif
-
-
 
     return _SUCCESS;
 }
@@ -129,12 +195,24 @@ _modules_error multithread_wait()
 
 
 #ifdef POSIX_THREADS
+
     uintptr_t error;
 
     if (pthread_join(THREAD, (void **) &error))
         return _THREAD_TERMINATION_FAILED;
-    return error;
+
+#elif defined(WIN_THREADS)
+
+    DWORD error;
+
+    if (WaitForSingleObject(HTHREAD, INFINITE) != WAIT_OBJECT_0 || !GetExitCodeThread(HTHREAD, &error))
+        error = _THREAD_TERMINATION_FAILED;
+    
+    CloseHandle(HTHREAD);
+
 #endif
+
+    return error;
 }
 
 
@@ -164,7 +242,7 @@ float clock_main_thread(CLOCK_ACTION action)
 
     if (action == START_CLOCK) {
         start_time = clock();
-        return start_time != -1 ? 0 : -1
+        return start_time != -1 ? 0 : -1;
     }
     else {
         if (start_time == -1)

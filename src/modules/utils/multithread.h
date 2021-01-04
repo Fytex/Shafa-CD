@@ -20,6 +20,9 @@
 
 extern bool NO_MULTITHREAD;
 
+/*
+    Clock's time action
+*/
 typedef enum {STOP_CLOCK, START_CLOCK} CLOCK_ACTION;
 
 /**

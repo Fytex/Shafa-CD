@@ -2,7 +2,7 @@
  *
  *  Author(s): Pedro Tavares
  *  Created Date: 3 Dec 2020
- *  Updated Date: 20 Dec 2020
+ *  Updated Date: 3 Jan 2021
  *
  ***********************************************/
 
@@ -35,6 +35,13 @@ typedef struct {
 } Options;
 
 
+/**
+\brief Parses the arguments provided by the user into a Options' struct
+ @param argc Number of arguments provided by the user
+ @param argv Array of arguments provided by the user
+ @param file Pointer to a string for pointing to the file's path provided by the user
+ @returns Error status
+*/
 static bool parse(const int argc, char * const argv[], Options * const options, char ** const file)
 {
     char opt;
@@ -130,6 +137,13 @@ static bool parse(const int argc, char * const argv[], Options * const options, 
                        assign the new filename's reference to the argument `path`.
         Every module needs to check if the files that they need exist and are accessible otherwise
            they should return an int enumerated in _modules_error from modules/utils/errors.h
+*/
+
+/**
+\brief Executes each module taking care of every mistake done from the user's input along with each execute module
+ @param options A struct to the Options parsed from the user's input
+ @param ptr_file a Pointer to a string which corresponds to the file's path
+ @returns Error status
 */
 _modules_error execute_modules(Options options, char ** const ptr_file) // better copying only a few bytes instead of dereferncing all of them
 {

@@ -21,7 +21,9 @@
 #include "modules/utils/extensions.h"
 #include "modules/utils/multithread.h"
 
-
+/*
+    Every option parsed from user's input
+*/
 typedef struct {
     unsigned long block_size;
     bool module_f;

@@ -62,8 +62,6 @@ static pthread_t THREAD = 0;
 static HANDLE HTHREAD = 0;
 #endif
 
-struct timespec start, finish;
-
 /**
 \brief Calls both functions and waits last thread closing the handle
  @returns Error status (Hack as a pointer)
@@ -108,7 +106,7 @@ static DWORD WINAPI wrapper(LPVOID _data)
     
     HeapFree(GetProcessHeap(), 0, data);
 
-    return error;
+    return prev_error ? prev_error : error;
 }
 #endif
 

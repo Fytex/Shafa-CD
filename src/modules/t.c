@@ -235,7 +235,7 @@ static inline void print_summary(unsigned long long num_blocks, const unsigned l
             "Francisco Neves,a93202,MIEI/CD, 1-JAN-2021\n"
             "Leonardo Freitas,a93281,MIEI/CD, 1-JAN-2021\n"
             "Module:T (Calculation of symbol codes)\n"
-            "Number of blocks: %lld\n"
+            "Number of blocks: %lu\n"
             "Size of blocks analyzed in the symbol file: " ,
             num_blocks 
     );

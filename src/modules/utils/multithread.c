@@ -32,6 +32,9 @@ bool NO_MULTITHREAD = true;
 
 #endif
 
+/*
+    Stack functions, arguments for both functions and lastly the previous thread ID into a struct
+*/
 #ifdef THREADS
 typedef struct {
 
@@ -61,6 +64,10 @@ static HANDLE HTHREAD = 0;
 
 struct timespec start, finish;
 
+/**
+\brief Calls both functions and waits last thread closing the handle
+ @returns Error status (Hack as a pointer)
+*/
 #ifdef POSIX_THREADS
 static uintptr_t wrapper(Data * data)
 {
@@ -104,6 +111,8 @@ static DWORD WINAPI wrapper(LPVOID _data)
     return error;
 }
 #endif
+
+
 
 /*
                                       POSIX CAUTION

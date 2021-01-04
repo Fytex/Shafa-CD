@@ -22,7 +22,7 @@
 #include "modules/utils/multithread.h"
 
 /*
-    Every option parsed by user's input
+    Every option parsed from user's input
 */
 typedef struct {
     unsigned long block_size;

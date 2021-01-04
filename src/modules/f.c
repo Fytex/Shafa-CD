@@ -6,17 +6,17 @@
  *
  **************************************************/
 
-#include "f.h"
-#include "utils/errors.h"
-#include "utils/file.h"
-#include "utils/extensions.h"
-
 #include <time.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <stdint.h>
 #include <stdbool.h>
+
+
+#include "utils/file.h"
+#include "utils/errors.h"
+#include "utils/extensions.h"
 
 
 /**
@@ -27,7 +27,7 @@
  @param size_f Size of the original file
  @returns Size of the compressed block
 */
-int block_compression(const uint8_t buffer[], uint8_t block[], const unsigned long block_size, unsigned long size_f)
+static int block_compression(const uint8_t buffer[], uint8_t block[], const unsigned long block_size, unsigned long size_f)
 {
     //Looping variables(i,j)
     int i, j, size_block_rle;
@@ -61,7 +61,7 @@ int block_compression(const uint8_t buffer[], uint8_t block[], const unsigned lo
  @param freq Array to put the frequencies
  @param size_block Block size
 */
-void make_freq(const unsigned char* block, int* freq, unsigned long size_block)
+static void make_freq(const unsigned char* block, int* freq, unsigned long size_block)
 {
     int i;
     //Puts all the elements of freq as 0
@@ -86,7 +86,7 @@ void make_freq(const unsigned char* block, int* freq, unsigned long size_block)
  @param n_blocks Number of blocks
  @returns Error status
 */
-_modules_error write_freq(const int *freq, FILE* f_freq, const unsigned long long block_num, const unsigned long long n_blocks) 
+static _modules_error write_freq(const int *freq, FILE* f_freq, const unsigned long long block_num, const unsigned long long n_blocks) 
 {
     int i, j, print = 0, print2 = 0, print3 = 0;
     _modules_error error = _SUCCESS;
@@ -187,7 +187,7 @@ static inline void print_summary(unsigned long long n_blocks, unsigned long *blo
 _modules_error freq_rle_compress(char** const path, const bool force_rle, const bool force_freq, const unsigned long block_size)
 {
     clock_t t; 
-    double total_t;
+    float total_t;
     float compression_ratio;
     uint8_t *buffer, *block;
     int  print;
@@ -407,7 +407,7 @@ _modules_error freq_rle_compress(char** const path, const bool force_rle, const 
         //Calculates the runtime
         t = clock() - t;
         //Calculates the time in milliseconds
-        total_t = (((double) t) / CLOCKS_PER_SEC) * 1000;
+        total_t = (float) ((((double) t) / CLOCKS_PER_SEC) * 1000);
         print_summary(n_blocks, block_sizes, size_f, block_rle_sizes, total_t, path_rle,  path_freq, path_rle_freq);
         free(block_sizes);
         free(block_rle_sizes);

@@ -280,12 +280,12 @@ static inline void print_summary(const uint64_t num_blocks, const unsigned long 
         "Pedro Tavares, a93227, MIEI/CD, 1-JAN-2021\n"
         "Tiago Costa, a93322, MIEI/CD, 1-JAN-2021\n"
         "Module: C (Symbol codes' codification)\n"
-        "Number of blocks: %" PRId64 "\n", num_blocks
+        "Number of blocks: %" PRIu64 "\n", num_blocks
     );
     for (uint64_t i = 0; i < num_blocks; ++i) {
         block_input_size = blocks_input_size[i];
         block_output_size = blocks_output_size[i];
-        printf("Size before/after & compression rate (Block %" PRId64 "): %lu/%lu -> %d%%\n", i, block_input_size, block_output_size, (int) (((float) block_output_size / block_input_size) * 100));
+        printf("Size before/after & compression rate (Block %" PRIu64 "): %lu/%lu -> %d%%\n", i, block_input_size, block_output_size, (int) (((float) block_output_size / block_input_size) * 100));
     }
     
     printf(
@@ -309,7 +309,7 @@ _modules_error shafa_compress(char ** const path)
     char * path_codes;
     char * path_shafa;
     char * block_codes;
-    int64_t num_blocks;
+    uint64_t num_blocks;
     unsigned long block_size;
     int error = _SUCCESS;
     uint8_t * block_input;
@@ -327,7 +327,7 @@ _modules_error shafa_compress(char ** const path)
 
         if (fd_codes) {
 
-            if (fscanf(fd_codes, "@%*c@%" PRId64, &num_blocks) == 1) {
+            if (fscanf(fd_codes, "@%*c@%" PRIu64, &num_blocks) == 1) {
 
                 // Open File's handle
                 fd_file = fopen(path_file, "rb");
@@ -345,7 +345,7 @@ _modules_error shafa_compress(char ** const path)
 
                         if (fd_shafa) {
 
-                            if (fprintf(fd_shafa, "@%" PRId64, num_blocks) >= 2) {
+                            if (fprintf(fd_shafa, "@%" PRIu64, num_blocks) >= 2) {
 
                                 blocks_size = malloc(2 * num_blocks * sizeof(unsigned long));
 
@@ -354,7 +354,7 @@ _modules_error shafa_compress(char ** const path)
                                     blocks_input_size = blocks_size;
                                     blocks_output_size = blocks_input_size + num_blocks; // Acts as a "virtual" array
 
-                                    for (int64_t thread_idx = 0; thread_idx < num_blocks; ++thread_idx) {
+                                    for (uint64_t thread_idx = 0; thread_idx < num_blocks; ++thread_idx) {
 
                                         block_codes = malloc((33151 + 1 + 1) * sizeof(char)); //sum 1 to 256 (worst case shannon fano) + 255 semicolons + 1 byte NULL + 1 algorithm efficiency (exchange 2 * 256 + 2 compares for +1 byte in heap and +1 memory access)
 

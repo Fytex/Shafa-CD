@@ -27,7 +27,7 @@
  @param size_f Size of the original file
  @returns Size of the compressed block
 */
-int block_compression(const uint8_t buffer[], uint8_t block[], const int block_size, int size_f)
+int block_compression(const uint8_t buffer[], uint8_t block[], const unsigned long block_size, unsigned long size_f)
 {
     //Looping variables(i,j)
     int i, j, size_block_rle;
@@ -61,7 +61,7 @@ int block_compression(const uint8_t buffer[], uint8_t block[], const int block_s
  @param freq Array to put the frequencies
  @param size_block Block size
 */
-void make_freq(const unsigned char* block, int* freq, int size_block)
+void make_freq(const unsigned char* block, int* freq, unsigned long size_block)
 {
     int i;
     //Puts all the elements of freq as 0
@@ -86,7 +86,7 @@ void make_freq(const unsigned char* block, int* freq, int size_block)
  @param n_blocks Number of blocks
  @returns Error status
 */
-_modules_error write_freq(const int *freq, FILE* f_freq, const int block_num, const int n_blocks) 
+_modules_error write_freq(const int *freq, FILE* f_freq, const unsigned long long block_num, const unsigned long long n_blocks) 
 {
     int i, j, print = 0, print2 = 0, print3 = 0;
     _modules_error error = _SUCCESS;
@@ -129,18 +129,18 @@ _modules_error write_freq(const int *freq, FILE* f_freq, const int block_num, co
  @param path_freq Path to the freq file from the txt file
  @param path_rle_freq Path to the freq file from the rle file
 */
-static inline void print_summary(long long n_blocks, unsigned long *block_sizes, unsigned long size_f, unsigned long *block_rle_sizes, double total_t, const char * const path_rle, const char * const path_freq, const char * const path_rle_freq) 
+static inline void print_summary(unsigned long long n_blocks, unsigned long *block_sizes, unsigned long size_f, unsigned long *block_rle_sizes, double total_t, const char * const path_rle, const char * const path_freq, const char * const path_rle_freq) 
 {
     printf(
         "Ana Rita Teixeira, a93276, MIEI/CD, 1-jan-2021\n"
         "João Carvalho, a93166, MIEI/CD, 1-jan-2021\n"
         "Module: f (calculation of symbol frequencies)\n"
-        "Number of blocks: %lld\n" , n_blocks
+        "Number of blocks: %lu\n" , n_blocks
     );
     
     printf("Size of blocks analyzed in the original file: ");
     //Cycle to print the block sizes of the txt file
-    for(long long i = 0; i < n_blocks; i++) {
+    for(unsigned long long i = 0; i < n_blocks; i++) {
         if(i == n_blocks - 1)
             printf("%lu\n", block_sizes[i]);
         else printf("%lu/", block_sizes[i]);
@@ -150,7 +150,7 @@ static inline void print_summary(long long n_blocks, unsigned long *block_sizes,
         unsigned long size_rle = 0;
         long compression;
         float compression_ratio;
-        for(long long j = 0; j<n_blocks; j++) size_rle += block_rle_sizes[j];
+        for(unsigned long long j = 0; j<n_blocks; j++) size_rle += block_rle_sizes[j];
         compression = size_f - size_rle;
         compression_ratio = (float)compression/(float)size_f; 
         compression_ratio*=100.0;
@@ -192,7 +192,7 @@ _modules_error freq_rle_compress(char** const path, const bool force_rle, const 
     uint8_t *buffer, *block;
     int  print;
     long compression;
-    long long n_blocks, block_num;
+    unsigned long long n_blocks, block_num;
     bool compress_rle;
     long size_of_last_block;
     char *path_rle = NULL, *path_rle_freq = NULL, *path_freq = NULL; 
@@ -293,12 +293,12 @@ _modules_error freq_rle_compress(char** const path, const bool force_rle, const 
                                                 //If it's the first block and the user forced the rle file
                                                 if(block_num == 0 && compress_rle) {
                                                     //Prints the header of the freq file: @R@n_blocks
-                                                    print = fprintf(f_rle_freq,"@R@%lld", n_blocks);
+                                                    print = fprintf(f_rle_freq,"@R@%lu", n_blocks);
                                                 }
                                                 //If it's the first block and the user didn't forced the rle file or forced the freq file
                                                 if(block_num == 0 && (!compress_rle || force_freq)) {
                                                     //Prints the header of the freq file: @N@n_blocks
-                                                    print = fprintf(f_freq,"@N@%lld", n_blocks);
+                                                    print = fprintf(f_freq,"@N@%lu", n_blocks);
                                                 }
                                                 //If the fprintf went well
                                                 if(print >= 4) {

@@ -203,7 +203,7 @@ _modules_error execute_modules(Options options, char ** const ptr_file) // bette
 
     if (options.module_d) {
 
-        if ((options.module_f && (!options.module_t || !options.module_c)) || (options.module_t && !options.module_c)) { // Conflict
+        if ((options.module_f && (!options.module_t || !options.module_c) && !check_ext(*ptr_file, RLE_EXT)) || (options.module_t && !options.module_c)) { // Conflict
             fputs("Module d: Can't execute module 'd' after 'f' without 't' or 'c', nor execute it after 't'  without 'c'...\n", stderr);
             return _OUTSIDE_MODULE;
         }

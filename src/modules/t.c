@@ -227,9 +227,9 @@ static int not_null (unsigned long frequencies[NUM_SYMBOLS])
  * @param total_time Time it took to execute the module 
  * @param path Path of the created .cod file
  */
-static inline void print_summary(const long long num_blocks, const unsigned long * sizes, const double total_time, const char * const path)
+static inline void print_summary(unsigned long long num_blocks, const unsigned long * sizes, const double total_time, const char * const path)
 {
-    long long i;
+    unsigned long long i;
 
     printf(
             "Francisco Neves,a93202,MIEI/CD, 1-JAN-2021\n"
@@ -269,7 +269,7 @@ _modules_error get_shafa_codes(const char * path)
     char * path_codes;
     char * block_input;
     char mode;
-    long long num_blocks = 0;
+    unsigned long long num_blocks = 0;
     unsigned long block_size = 0;
     int freq_notnull, iter;
     int error = _SUCCESS;
@@ -293,7 +293,7 @@ _modules_error get_shafa_codes(const char * path)
         if (fd_freq) {
 
              // Reading the header of .freq file
-            if (fscanf(fd_freq, "@%c@%lld", &mode, &num_blocks) == 2) {   
+            if (fscanf(fd_freq, "@%c@%lu", &mode, &num_blocks) == 2) {   
 
                 // Checks if it haves a possible mode (R - RLE or N - Normal)
                 if (mode == 'R' || mode == 'N') {
@@ -317,7 +317,7 @@ _modules_error get_shafa_codes(const char * path)
                             if (fd_codes) {
                                 
                                 // Prints header in the .cod file and checks if it only prints the proper elements
-                                if (fprintf(fd_codes, "@%c@%lld", mode, num_blocks) >= 3) {                               
+                                if (fprintf(fd_codes, "@%c@%lu", mode, num_blocks) >= 3) {                               
                                     
                                     // Loop to analyze every block in .freq file
                                     for (long long i = 0; i < num_blocks && !error; ++i) {

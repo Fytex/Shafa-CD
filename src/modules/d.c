@@ -10,13 +10,16 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdint.h>
+#include <stdbool.h>
 
-#include "d.h"
+
+
 #include "utils/file.h"
+#include "utils/errors.h"
 #include "utils/extensions.h"
 #include "utils/multithread.h"
 
-#define n_simb 256
+#define NUM_SYMBOLS 256
 
 /**
 \brief Struct with the types of decoding possible
@@ -481,7 +484,7 @@ static _modules_error create_tree (char * code, BTree * decoder)
                 l++;
             }
             // Allocates memory for the sf code of a symbol
-            sf = malloc(257); // 256 maximum + 1 NULL
+            sf = malloc(NUM_SYMBOLS + 1); // 256 maximum + 1 NULL
             if (sf) {      
                 for (j = 0; code[l] && (code[l] != ';'); ++j, ++l) 
                     sf[j] = code[l];

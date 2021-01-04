@@ -13,7 +13,6 @@
 #include <stdbool.h>
 
 
-
 #include "utils/file.h"
 #include "utils/errors.h"
 #include "utils/extensions.h"

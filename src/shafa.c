@@ -175,7 +175,7 @@ _modules_error execute_modules(Options options, char ** const ptr_file) // bette
                 *ptr_file = tmp_file;
             }       
             else {
-                fprintf(stderr, "Module d: Wrong extension... Should end in %s\n", FREQ_EXT);
+                fprintf(stderr, "Module f: Wrong extension... Should end in %s\n", FREQ_EXT);
                 return _OUTSIDE_MODULE;
             }
         }

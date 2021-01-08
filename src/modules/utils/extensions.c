@@ -14,13 +14,6 @@
 #include "extensions.h"
 
 // If used strrchr the worst case would be a long path without a '.' because it would compare every letter
-
-/**
-\brief Checks if file has the correct extension
- @param path Path to file
- @param ext Extension
- @return Existence of the given extension in the string
-*/
 bool check_ext(const char * const path, const char * const ext)
 {
     size_t diff;
@@ -36,11 +29,6 @@ bool check_ext(const char * const path, const char * const ext)
 }
 
 
-/**
-\brief Adds an extension to the file
- @param path Path to file
- @param ext Extension
-*/
 char * add_ext(const char * const path, const char * const ext)
 {
     size_t len_path = strlen(path);
@@ -57,10 +45,7 @@ char * add_ext(const char * const path, const char * const ext)
     return new_path;
 }
 
-/**
-\brief Removes an extension from file
- @param path Path to file
-*/
+
 char * rm_ext(const char * const path)
 {
     size_t len_path_no_ext;

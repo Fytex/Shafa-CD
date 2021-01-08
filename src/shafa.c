@@ -290,8 +290,12 @@ int main (const int argc, char * const argv[])
 
 
 
-    if (!options.module_f && !options.module_t && !options.module_c && !options.module_d)
-        options.module_f = options.module_t = options.module_c = options.module_d = 1;
+    if (!options.module_f && !options.module_t && !options.module_c && !options.module_d) {
+        if (check_ext(file, SHAFA_EXT)) // if user wants to decompress a RLE only then they must specify `-m d` which will be equivalent to `-m d -d r`
+            options.module_d = 1;
+        else
+            options.module_f = options.module_t = options.module_c = 1;
+    }
 
     // Can't do the same for `options.d_shaf` and `options.d_rle` since we would lost information
     // about the user forcing Shannon Fano's decompression in case they passed a `.rle` file

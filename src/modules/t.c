@@ -19,12 +19,11 @@
 #define MIN(a,b) ((a) < (b) ? a : b)
 
 /**
- * @brief Function who reads the frequencies of each block provided by the .freq file 
- * 
- * @param codes_input Buffer of the respective .freq file block
- * @param frequencies Array to store the frequencies from each symbol
- * @return Error status
- */
+\brief Reads the frequencies of each block provided by the .freq file 
+ @param codes_input Buffer of the respective .freq file block
+ @param frequencies Array to store the frequencies from each symbol
+ @returns Error status
+*/
 static _modules_error read_block(char * restrict codes_input, unsigned long * restrict frequencies) 
 {
     int read_count;
@@ -66,13 +65,12 @@ static _modules_error read_block(char * restrict codes_input, unsigned long * re
 }
 
 /**
- * @brief Fuction to sort the frequencies array in descending order
- * 
- * @param frequencies The array to save the frequencies
- * @param positions Array with the original index of each symbol
- * @param start Inital index of the array 
- * @param end  Final index of the array
- */
+\brief Sort the frequencies array in descending order 
+ @param frequencies The array to save the frequencies
+ @param positions Array with the original index of each symbol
+ @param left Inital index of the array 
+ @param right Final index of the array
+*/
 static void insert_sort (unsigned long frequencies[], int positions[], int left, int right)
 {
     unsigned long tmpFreq;
@@ -106,15 +104,12 @@ static void insert_sort (unsigned long frequencies[], int positions[], int left,
 } 
 
 /**
- * @brief Function who calculates 
- * the sum of the positional frequencies  
- * from the first to the last position.
- * 
- * @param frequencies Array Frequencies 
- * @param first First Element of the array
- * @param last Last element of the array
- * @return Total sum of the frequencies 
- */
+\brief Calculates the sum of the positional frequencies from the first to the last position
+ @param frequencies Array Frequencies 
+ @param first First Element of the array
+ @param last Last element of the array
+ @returns Total sum of the frequencies 
+*/
 static unsigned long sum_freq (unsigned long frequencies[], int first, int last)
 {
     unsigned long sum = 0;
@@ -126,15 +121,12 @@ static unsigned long sum_freq (unsigned long frequencies[], int first, int last)
 }
 
 /**
- * @brief Function to calculate the best division of 
- * any sequence of frequencies ordered between the element 
- * in the first position and the element in the last position.
- * 
- * @param frequencies Array Frequencies 
- * @param first First element of the array
- * @param last  Last element of the array
- * @return The index of the best division
- */
+\brief Find the best division of any sequence of frequencies ordered between the element in the first position and the element in the last position
+ @param frequencies Array Frequencies 
+ @param first First element of the array
+ @param last  Last element of the array
+ @returns Index of the best division
+*/
 static int best_Division (unsigned long frequencies[], int first, int last)
 {
     
@@ -160,13 +152,12 @@ static int best_Division (unsigned long frequencies[], int first, int last)
 }
 
 /**
- * @brief Function that will add the bit 0 or 1 to the code according to the Shannon-Fano algorithm
- * 
- * @param value bit to be added to code (0 or 1)
- * @param codes Place to store the codes
- * @param start First Element
- * @param end Last Element 
- */
+\brief Add character representing a bit 0 or 1 to the code according to the Shannon-Fano algorithm 
+ @param value bit to be added to code (0 or 1)
+ @param codes Place to store the codes
+ @param start First Element
+ @param end Last Element 
+*/
 static void add_bit_to_code(char value, char codes[NUM_SYMBOLS][NUM_SYMBOLS], int start, int end)
 {
     char * symbol_codes;
@@ -182,15 +173,15 @@ static void add_bit_to_code(char value, char codes[NUM_SYMBOLS][NUM_SYMBOLS], in
 }
 
 /**
- * @brief Function to aplly the Shannon-Fano algorithm
- * 
- * @param frequencies Array with frequencies
- * @param codes Array to store the codes 
- * @param start First element to aply the algorithm
- * @param end Last element to apply the algorithm
- */
+\brief Apply the Shannon-Fano algorithm 
+ @param frequencies Array with frequencies
+ @param codes Array to store the codes 
+ @param start First element to aply the algorithm
+ @param end Last element to apply the algorithm
+*/
 static void sf_codes (unsigned long frequencies[], char codes[NUM_SYMBOLS][NUM_SYMBOLS], int start, int end)
-{//While the pointer at the beginning is not the same as at the end it applies the algorithm
+{
+    //While the pointer at the beginning is not the same as at the end it applies the algorithm
     if (start != end){
                
         int div = best_Division(frequencies, start, end);
@@ -204,11 +195,10 @@ static void sf_codes (unsigned long frequencies[], char codes[NUM_SYMBOLS][NUM_S
 }
 
 /**
- * @brief Function that counts how many symbols have frequencies different of 0
- * 
- * @param frequencies Array of the frequencies sorted in descending order
- * @return Number of non-null elements in the array
- */
+\brief Counts how many symbols have frequencies different from 0 
+ @param frequencies Array of the frequencies sorted in descending order
+ @returns Number of non-null elements in the array
+*/
 static int not_null (unsigned long frequencies[NUM_SYMBOLS])
 {
     int r = 0;
@@ -220,13 +210,12 @@ static int not_null (unsigned long frequencies[NUM_SYMBOLS])
 }
 
 /**
- * @brief Prints in the screen all information related to this module
- * 
- * @param num_blocks Number of blocks analyzed
- * @param sizes Array with sizes of each block analyzed
- * @param total_time Time it took to execute the module 
- * @param path Path of the created .cod file
- */
+\brief Prints in the screen all information related to this module 
+ @param num_blocks Number of blocks analyzed
+ @param sizes Array with sizes of each block analyzed
+ @param total_time Time it took to execute the module 
+ @param path Path of the created .cod file
+*/
 static inline void print_summary(unsigned long long num_blocks, const unsigned long * sizes, const double total_time, const char * const path)
 {
     unsigned long long i;
@@ -254,13 +243,6 @@ static inline void print_summary(unsigned long long num_blocks, const unsigned l
 }
 
 
-// This module should receive a .freq file, but shafa.c will handle that file and pass to this module the original file
-/**
- * @brief Function who calls all the others functions and checks for possible errors
- * 
- * @param path Path of the .freq file to be analyzed
- * @return Error status
- */
 _modules_error get_shafa_codes(const char * path)
 {
     clock_t t;

@@ -466,7 +466,6 @@ typedef struct {
 static _modules_error create_tree (char * code, BTree * decoder)
 {
     _modules_error error;
-    char *sf;
     int j, start, end;
 
     error = _SUCCESS;
@@ -488,7 +487,7 @@ static _modules_error create_tree (char * code, BTree * decoder)
             start = l;
             for ( ; code[l] && (code[l] != ';'); ++l);
             end = l;    
-                  
+
             if (start != end) 
                 // Adds the code to the tree
                 error = add_tree(decoder, code, start, end, symb);

@@ -413,14 +413,16 @@ static void free_tree(BTree tree)
 /**
 \brief Adds a given symbol to the BTree
  @param decoder Tree with saved symbols to help in decoding
- @param code Path to save the symbol in the correct leaf
+ @param code String with the codes from COD file
+ @param start Beggining of the code to be added
+ @param end Ending of the code to be added
  @param symbol Symbol to be saved in the tree 
  @returns Error status
 */
-static _modules_error add_tree(BTree* decoder, char *code, char symbol) 
+static _modules_error add_tree(BTree* decoder, char *code, int start, int end, char symbol) 
 {
     // Creation of the path to the symbol we are placing
-    for (int i = 0; code[i]; ++i) {
+    for (int i = start; i < end; ++i) {
 
         if (*decoder && code[i] == '0') decoder = &(*decoder)->left;
         else if (*decoder && code[i] == '1') decoder = &(*decoder)->right;
@@ -465,7 +467,7 @@ static _modules_error create_tree (char * code, BTree * decoder)
 {
     _modules_error error;
     char *sf;
-    unsigned long j;
+    int j, start, end;
 
     error = _SUCCESS;
     // Initialize root without meaning 
@@ -475,28 +477,22 @@ static _modules_error create_tree (char * code, BTree * decoder)
         
         (*decoder)->left = (*decoder)->right = NULL;
           
-        for (unsigned long k = 0, l = 0; code[l] && !error;) {
+        for (int symb = 0, l = 0; code[l] && !error;) {
 
             // When it finds a ';' it is no longer on the same symbol. This updates it.
             while (code[l] == ';') {
-                k++;
+                symb++;
                 l++;
             }
-            // Allocates memory for the sf code of a symbol
-            sf = malloc(NUM_SYMBOLS + 1); // 256 maximum + 1 NULL
-            if (sf) {      
-                for (j = 0; code[l] && (code[l] != ';'); ++j, ++l) 
-                    sf[j] = code[l];
-                sf[j] = '\0';           
-                if (j != 0) 
-                    // Adds the code to the tree
-                    error = add_tree(decoder, sf, k);
-                                
-                             
-                free(sf);        
-            }
-            else  
-                error = _LACK_OF_MEMORY;                
+                
+            start = l;
+            for ( ; code[l] && (code[l] != ';'); ++l);
+            end = l;    
+                  
+            if (start != end) 
+                // Adds the code to the tree
+                error = add_tree(decoder, code, start, end, symb);
+           
         }
 
         free(code);       

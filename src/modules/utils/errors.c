@@ -25,7 +25,7 @@
 /**
 \brief Returns an error 
  @param num Number of error
- @return Error message
+ @returns Error message
 */
 const char * error_msg(const int num)
 {

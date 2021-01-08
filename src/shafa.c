@@ -157,7 +157,7 @@ _modules_error execute_modules(Options options, char ** const ptr_file) // bette
         error = freq_rle_compress(ptr_file, options.f_force_rle, options.f_force_freq, options.block_size); // Returns true if file was RLE compressed
 
         if (error) {
-            fputs("Module d: Something went wrong while compressing with RLE or creating frequencies' table...\n", stderr);
+            fputs("Module f: Something went wrong while compressing with RLE or creating frequencies' table...\n", stderr);
             return error;
         }
     }
@@ -175,7 +175,7 @@ _modules_error execute_modules(Options options, char ** const ptr_file) // bette
                 *ptr_file = tmp_file;
             }       
             else {
-                fprintf(stderr, "Module f: Wrong extension... Should end in %s\n", FREQ_EXT);
+                fprintf(stderr, "Module t: Wrong extension... Should end in %s\n", FREQ_EXT);
                 return _OUTSIDE_MODULE;
             }
         }

@@ -420,7 +420,7 @@ static void free_tree(BTree tree)
 static _modules_error add_tree(BTree* decoder, char *code, char symbol) 
 {
     // Creation of the path to the symbol we are placing
-    for (unsigned long i = 0; code[i]; ++i) {
+    for (int i = 0; code[i]; ++i) {
 
         if (*decoder && code[i] == '0') decoder = &(*decoder)->left;
         else if (*decoder && code[i] == '1') decoder = &(*decoder)->right;

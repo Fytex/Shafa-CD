@@ -46,7 +46,7 @@ typedef struct {
  @param block_input Block with original file's bytes
  @param block_size Block size 
  @param new_block_size Block size after codification
- @return Allocated string of compressed binary
+ @returns Allocated string of compressed binary
  */
 static uint8_t * binary_coding(CodesIndex * const table, const uint8_t * restrict block_input, const unsigned long block_size, unsigned long * const new_block_size)
 {
@@ -84,7 +84,7 @@ static uint8_t * binary_coding(CodesIndex * const table, const uint8_t * restric
 /**
 \brief Generates table of codes
  @param _args Structure with all arguments needed to this function
- @return Error status
+ @returns Error status
 */
 static _modules_error compress_to_buffer(void * const _args)
 {
@@ -239,7 +239,7 @@ static _modules_error compress_to_buffer(void * const _args)
  @param _args Structure with all arguments needed to this function 
  @param prev_error Error before calling this functione
  @param error Error after calling this function
- @return Error status
+ @returns Error status
 */
 static _modules_error write_shafa(void * const _args, _modules_error prev_error, _modules_error error)
 {
@@ -298,11 +298,6 @@ static inline void print_summary(const unsigned long long num_blocks, const unsi
 }
 
 
-/**
-\brief Compresses a block
- @param path Path to file
- @return Error status
-*/
 _modules_error shafa_compress(char ** const path)
 {
     FILE * fd_file, * fd_codes, * fd_shafa;

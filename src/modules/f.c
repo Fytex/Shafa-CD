@@ -176,14 +176,7 @@ static inline void print_summary(unsigned long long n_blocks, unsigned long *blo
         printf("%s\n", path_rle_freq);
 }
 
-/**
-\brief Prints the results of the program execution
- @param path Path to the original file
- @param force_rle Command to force compression
- @param force_freq Command to force freq file for the original file
- @param block_size Block size
- @returns Error status
-*/
+
 _modules_error freq_rle_compress(char** const path, const bool force_rle, const bool force_freq, const unsigned long block_size)
 {
     clock_t t; 

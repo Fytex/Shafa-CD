@@ -19,6 +19,7 @@
 \brief Checks if file has the correct extension
  @param path Path to file
  @param ext Extension
+ @return Existence of the given extension in the string
 */
 bool check_ext(const char * const path, const char * const ext)
 {

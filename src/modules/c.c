@@ -40,6 +40,7 @@ typedef struct {
     unsigned long * new_block_size;
 } Arguments;
 
+
 /**
 \brief Aplies algorithm to make the symbols' codification
  @param table Table of codes
@@ -80,6 +81,7 @@ static uint8_t * binary_coding(CodesIndex * const table, const uint8_t * restric
 
     return block_output;
 }
+
 
 /**
 \brief Generates table of codes
@@ -219,7 +221,7 @@ static _modules_error compress_to_buffer(void * const _args)
     
     /*
     /
-    /    Write compressed code
+    /    Write compressed code to buffer
     /
     */
 
@@ -233,6 +235,7 @@ static _modules_error compress_to_buffer(void * const _args)
 
     return _SUCCESS;
 }
+
 
 /**
 \brief Writes codification to file
@@ -266,6 +269,8 @@ static _modules_error write_shafa(void * const _args, _modules_error prev_error,
     free(_args);
     return error;
 }
+
+
 /**
 \brief Prints the results of the program execution
  @param num_blocks Number of blocks analysed

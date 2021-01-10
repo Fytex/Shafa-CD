@@ -3,7 +3,7 @@
 
 # What is Shafa?
 
-Shafa is a free and open-source program made for Lossless files' compression written in C (2020/21).  
+**Shafa** is a free and open-source program made for Lossless files' compression written in C (2020/21).  
 It is OS independent and some modules are multithread executed if running on Windows or POSIX-compliant (allowing pthreads).  
 
 Uses two algorithms for compression:

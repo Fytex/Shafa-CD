@@ -19,11 +19,26 @@ For Shannon Fano's decompression a .cod file is needed along with .shaf.
   - T ( Codes calculation using Shannon-Fano's algorithm )
   - C ( Shannon-Fano compression )
   - D ( RLE and Shannon-Fano decompression )
+ 
+#### SETUP - \*NIX
+```
+gcc -o shafa $(find ./src -name '*.c' -or -name '*.h') -O3 -Wno-format -pthread
+```
 
-### Block Size:
-  - K = 640 KiB
-  - m =   8 MiB
-  - M =  64 MiB
+#### SETUP - WINDOWS
+```
+gcc -o shafa src/*.c src/*.h src/*/*.c src/*/*.h src/*/*/*.c src/*/*/*.h -O3 -Wno-format
+```
+
+
+### How to execute?
+Open terminal where the created executable `shafa` is located and type the following:
+
+**Windows**:
+ - shafa.exe \<file> \<options>
+
+**\*NIX**:
+ - ./shafa \<file> \<options>
 
 ### CLI Options:
     -m <module>      :  Executes respective module (Can be executed more than one module if possible)
@@ -31,15 +46,11 @@ For Shannon Fano's decompression a .cod file is needed along with .shaf.
     -c <r/f>         :  Forces execution (r -> RLE's compress | f -> Original file's frequencies)
     -d <s/r>         :  Only executes a specific decompression (s -> Shannon-Fano's algorithm | r -> RLE's algorithm)
     --no-multithread :  Disables multithread 
+    
+    
+### Blocks Size:
+  - K = 640 KiB
+  - m =   8 MiB
+  - M =  64 MiB
 
-**Note:** Multithread was only implemented in modules C and D (ones that cost the most)
-
-### SETUP - \*NIX
-```
-gcc -o shafa $(find ./src -name '*.c' -or -name '*.h') -O3 -Wno-format -pthread
-```
-
-### SETUP - WINDOWS
-```
-gcc -o shafa src/*.c src/*.h src/*/*.c src/*/*.h src/*/*/*.c src/*/*/*.h -O3 -Wno-format
-```
+**Note:** Multithread was only implemented in modules C and D (the ones that cost the most)

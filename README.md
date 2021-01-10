@@ -1,4 +1,4 @@
-![GitHub top language](https://img.shields.io/github/languages/top/fytex/Shafa?style=for-the-badge)
+![GitHub top language](https://img.shields.io/github/languages/top/fytex/Shafa-CD?style=for-the-badge)
 
 
 # What is Shafa?

@@ -21,7 +21,7 @@
 #define NUM_SYMBOLS 256
 
 /**
-\brief Struct with the types of decoding possible
+ Enumeration of all possible types of decoding
 */
 typedef enum 
 {
@@ -95,7 +95,7 @@ static _modules_error load_rle (FILE* f_rle, unsigned long block_size, uint8_t *
 }
 
 /**
- \brief Arguments to the RLE multithread
+ Struct containing all arguments passed to the multithreaded RLE decompression
 */
 typedef struct {
 
@@ -442,7 +442,7 @@ static _modules_error add_tree(BTree* decoder, char *code, int start, int end, c
 }
 
 /*
-Struct for the SHAFA arguments in multithreading
+ Struct containing all arguments passed to the multithreaded SHAFA decompression
 */
 typedef struct {
 

@@ -18,7 +18,6 @@
 #include "utils/errors.h"
 #include "utils/extensions.h"
 
-
 /**
 \brief Compresses a block
  @param buffer Array loaded with the original file content
@@ -61,17 +60,18 @@ static int block_compression(const uint8_t buffer[], uint8_t block[], const unsi
  @param freq Array to put the frequencies
  @param size_block Block size
 */
-static void make_freq(const unsigned char* block, int* freq, unsigned long size_block)
+static void make_freq(const unsigned char* block, unsigned long* freq, unsigned long size_block)
 {
     int i;
+    unsigned long j;
     //Puts all the elements of freq as 0
     for(i = 0; i < 256; i++) freq[i] = 0;
     //Goes through the block
-    for(i = 0; i < size_block; i++)
+    for(j = 0; j < size_block; j++)
     {
         int symbol;
         //Saves symbol
-        symbol = block[i];
+        symbol = block[j];
         //Increments frequency of the symbol
         ++freq[symbol];
     
@@ -86,14 +86,14 @@ static void make_freq(const unsigned char* block, int* freq, unsigned long size_
  @param n_blocks Number of blocks
  @returns Error status
 */
-static _modules_error write_freq(const int *freq, FILE* f_freq, const unsigned long long block_num, const unsigned long long n_blocks) 
+static _modules_error write_freq(const unsigned long *freq, FILE* f_freq, const unsigned long long block_num, const unsigned long long n_blocks) 
 {
     int i, j, print = 0, print2 = 0, print3 = 0;
     _modules_error error = _SUCCESS;
     //Goes through the block of frequencies
     for(i = 0; i < 256;)
     {   //Writes the frequency of each value in the freq file
-        print = fprintf(f_freq,"%d", freq[i]);
+        print = fprintf(f_freq,"%lu", freq[i]);
         //Verifys if the fprintf went well
         if(print >= 1) {
             //If the frequencies of consecutive values are the same writes ';' after the fisrt value
@@ -183,7 +183,7 @@ _modules_error freq_rle_compress(char** const path, const bool force_rle, const 
     float total_t;
     float compression_ratio;
     uint8_t *buffer, *block;
-    int  print;
+    int  print_rle, print;
     long compression;
     unsigned long long n_blocks, block_num;
     bool compress_rle;
@@ -286,7 +286,7 @@ _modules_error freq_rle_compress(char** const path, const bool force_rle, const 
                                                 //If it's the first block and the user forced the rle file
                                                 if(block_num == 0 && compress_rle) {
                                                     //Prints the header of the freq file: @R@n_blocks
-                                                    print = fprintf(f_rle_freq,"@R@%lu", n_blocks);
+                                                    print_rle = fprintf(f_rle_freq,"@R@%lu", n_blocks);
                                                 }
                                                 //If it's the first block and the user didn't forced the rle file or forced the freq file
                                                 if(block_num == 0 && (!compress_rle || force_freq)) {
@@ -294,9 +294,9 @@ _modules_error freq_rle_compress(char** const path, const bool force_rle, const 
                                                     print = fprintf(f_freq,"@N@%lu", n_blocks);
                                                 }
                                                 //If the fprintf went well
-                                                if(print >= 4) {
+                                                if((print >= 4 && print_rle >= 4) || (print >= 4 && !compress_rle) || print_rle >= 4) {
                                                     //Allocates memory for all the 256 symbol's frequencies
-                                                    int *freq = malloc(sizeof(int)*256);
+                                                    unsigned long *freq = malloc(sizeof(unsigned long)*256);
                                                     if(freq) {
                                                         //If it can be compressed
                                                         if(compress_rle) {
@@ -309,7 +309,7 @@ _modules_error freq_rle_compress(char** const path, const bool force_rle, const 
                                                                 //Generates an array of frequencies of the block (rle file content)
                                                                 make_freq(block, freq, size_block_rle);
                                                                 //Prints the size of the current compressed block in the freq file
-                                                                if(fprintf(f_rle_freq, "@%ld@", size_block_rle) >= 2) {
+                                                                if(fprintf(f_rle_freq, "@%lu@", size_block_rle) >= 2) {
                                                                     //Writes each frequencies block in the freq file from the rle file
                                                                     error = write_freq(freq, f_rle_freq, block_num, n_blocks);
                                                                 }
@@ -324,7 +324,7 @@ _modules_error freq_rle_compress(char** const path, const bool force_rle, const 
                                                             //Generates an array of frequencies of the block (txt file content)
                                                             make_freq(buffer, freq, compresd);
                                                             //Prints the current block size in the freq file
-                                                            if(fprintf(f_freq, "@%ld@", compresd) >= 2) {
+                                                            if(fprintf(f_freq, "@%lu@", compresd) >= 2) {
                                                                 //Writes each frequencies block in the freq file from the txt file
                                                                 error = write_freq(freq, f_freq, block_num, n_blocks);
                                                                             

@@ -26,10 +26,10 @@
  @param size_f Size of the original file
  @returns Size of the compressed block
 */
-static int block_compression(const uint8_t buffer[], uint8_t block[], const unsigned long block_size, unsigned long size_f)
+static unsigned long block_compression(const uint8_t buffer[], uint8_t block[], const unsigned long block_size, unsigned long size_f)
 {
     //Looping variables(i,j)
-    int i, j, size_block_rle;
+    unsigned long i, j, size_block_rle;
     //Cycle that goes through the block of symbols of the file
     for(i = 0, size_block_rle=0; i < block_size && i < size_f; i = j) {
         //Number of repetitions of a symbol

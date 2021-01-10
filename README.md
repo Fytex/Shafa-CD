@@ -42,7 +42,7 @@ Open terminal where the created executable `shafa` is located and type the follo
 
 ### CLI Options:
     -m <module>      :  Executes respective module (Can be executed more than one module if possible)
-    -b <K/m/M>       :  Block size for compression (default: K)
+    -b <K/m/M>       :  Blocks size for compression (default: K)
     -c <r/f>         :  Forces execution (r -> RLE's compress | f -> Original file's frequencies)
     -d <s/r>         :  Only executes a specific decompression (s -> Shannon-Fano's algorithm | r -> RLE's algorithm)
     --no-multithread :  Disables multithread 

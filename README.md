@@ -10,10 +10,10 @@ For RLE decompression a .freq file is needed along with the .rle file.
 For Shannon-Fano decompression a .cod file is needed along with .shaf.  
 
 ## Modules:
-  - f ( RLE compression and Frequencies calculation )
-  - t ( Codes calculation using Shannon-Fano's algorithm )
-  - c ( Shannon-Fano compression )
-  - d ( RLE and Shannon-Fano decompression )
+  - F ( RLE compression and Frequencies calculation )
+  - T ( Codes calculation using Shannon-Fano's algorithm )
+  - C ( Shannon-Fano compression )
+  - D ( RLE and Shannon-Fano decompression )
 
 ### Block Size:
   - K = 640 KiB

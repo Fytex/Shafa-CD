@@ -85,7 +85,7 @@ static uint8_t * binary_coding(CodesIndex * const table, const uint8_t * restric
 
 /**
 \brief Generates table of codes
- @param _args Structure with all arguments needed to this function
+ @param _args Pointer to a structure with all arguments needed to this function
  @returns Error status
 */
 static _modules_error compress_to_buffer(void * const _args)
@@ -239,7 +239,7 @@ static _modules_error compress_to_buffer(void * const _args)
 
 /**
 \brief Writes codification to file
- @param _args Structure with all arguments needed to this function 
+ @param _args Pointer to a structure with all arguments needed to this function 
  @param prev_error Error before calling this functione
  @param error Error after calling this function
  @returns Error status

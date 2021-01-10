@@ -3,11 +3,11 @@
 
 # What is Shafa?
 
-Shafa is a free and open-source program made for Lossless files' compression written in C 2020/21.
-It is OS independent and some modules are multithread executed.
-Uses two algorithms RLE and Shannon Fano with blocks of length 1 (K=1).
-For RLE decompression a .freq file is needed along with the .rle file.
-For Shannon-Fano decompression a .cod file is needed along with .shaf.
+Shafa is a free and open-source program made for Lossless files' compression written in C 2020/21.  
+It is OS independent and some modules are multithread executed.  
+Uses two algorithms RLE and Shannon Fano with blocks of length 1 (K=1).  
+For RLE decompression a .freq file is needed along with the .rle file.  
+For Shannon-Fano decompression a .cod file is needed along with .shaf.  
 
 ## Modules:
   - f ( RLE compression and Frequencies calculation )

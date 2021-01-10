@@ -20,7 +20,7 @@
 #define NUM_OFFSETS 8
 
 /**
-\brief Struct with the symbol code, next and index
+ Struct with the symbol code, next and index which represent each row of the table for compression
 */
 typedef struct {
     int index;
@@ -29,7 +29,7 @@ typedef struct {
 } CodesIndex;
 
 /**
-\brief Struct with the parameters that are going to multithread
+ Struct containing parameters passed to the functions which run in multithread
 */
 typedef struct {
     unsigned long block_size;

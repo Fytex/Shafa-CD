@@ -241,7 +241,7 @@ _modules_error freq_rle_compress(char** const path, const bool force_rle, const 
                                         //Loads the content of the block of the txt file into the buffer
                                         if(fread(buffer, sizeof(uint8_t), compresd, f) == compresd) {
                                             //Allocates memory for the array that will contain the compressed content of the buffer
-                                            block = malloc(compresd * 2.1);
+                                            block = malloc(compresd * 2 + 3); // (size/2 + 1) * 3 + size/2 = 2*size + 3
                                             if(block) {
                                                 if(compress_rle) {
                                                     //Compresses the current block and returns its size
